@@ -107,3 +107,9 @@ def api_delete_search(search_id: int):
     return jsonify({"deleted": True, "id": search_id})
 
 
+@api_bp.get("/searches/<int:search_id>/candidates")
+def api_get_candidates(search_id: int):
+    search = Search.query.get_or_404(search_id)
+    return jsonify([c.to_dict() for c in search.candidates])
+
+
