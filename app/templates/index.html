@@ -1,13 +1,77 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Travel Planner MVP</title>
-  </head>
-  <body>
-    <h1>Travel Planner MVP</h1>
-    <p>Skeleton is running.</p>
-    <p>API health: <a href="/api/health">/api/health</a></p>
-  </body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Destination Discovery{% endblock %}
+
+{% block content %}
+  <h1>Destination Discovery</h1>
+
+  {% if error %}
+    <p style="color: red;">{{ error }}</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('ui.create_search') }}">
+    <div>
+      <label for="origins">Origins (Phase 1: comma-separated IATA codes)</label><br />
+      <input
+        id="origins"
+        name="origins"
+        type="text"
+        placeholder="BER, HAM, PRG"
+        required
+      />
+    </div>
+
+    <br />
+
+    <div>
+      <label for="travel_month">Travel month (optional)</label><br />
+      <input id="travel_month" name="travel_month" type="month" />
+      <small>(Format: YYYY-MM)</small>
+    </div>
+
+    <br />
+
+    <div>
+      <label for="duration_days">Duration in days (optional)</label><br />
+      <input id="duration_days" name="duration_days" type="number" min="1" />
+    </div>
+
+    <br />
+
+    <div>
+      <label for="max_price">Max price (optional)</label><br />
+      <input id="max_price" name="max_price" type="number" min="0" step="0.01" />
+      <input
+        id="currency_code"
+        name="currency_code"
+        type="text"
+        value="EUR"
+        maxlength="3"
+        size="4"
+      />
+    </div>
+
+    <br />
+
+    <div>
+      <label for="non_stop">Non-stop only</label>
+      <input id="non_stop" name="non_stop" type="checkbox" />
+    </div>
+
+    <br />
+
+    <div>
+      <label for="trip_type">Trip type (optional)</label><br />
+      <select id="trip_type" name="trip_type">
+        <option value="">—</option>
+        {% for t in trip_types %}
+          <option value="{{ t }}">{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <br />
+
+    <button type="submit">Create search</button>
+  </form>
+{% endblock %}

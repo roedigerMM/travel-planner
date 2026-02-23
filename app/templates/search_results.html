@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Search #{{ search.id }}{% endblock %}
+
+{% block content %}
+  <h1>Search #{{ search.id }}</h1>
+
+  <section>
+    <h2>Search settings</h2>
+    <ul>
+      <li><strong>Travel month:</strong> {{ search.travel_month or "—" }}</li>
+      <li><strong>Duration days:</strong> {{ search.duration_days or "—" }}</li>
+      <li><strong>Max price:</strong>
+        {% if search.max_price %}
+          {{ search.max_price }} {{ search.currency_code or "" }}
+        {% else %}
+          —
+        {% endif %}
+      </li>
+      <li><strong>Non-stop:</strong> {{ "Yes" if search.non_stop else "No" }}</li>
+      <li><strong>Trip type:</strong> {{ search.trip_type.value if search.trip_type else "—" }}</li>
+      <li><strong>Status:</strong> {{ search.status }}</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Origins</h2>
+    {% if search.origins %}
+      <ul>
+        {% for origin in search.origins %}
+          <li>{{ origin.iata_code }} ({{ origin.sub_type.value }})</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No origins saved.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Destination candidates</h2>
+    {% if search.candidates %}
+      <ul>
+        {% for c in search.candidates %}
+          <li>
+            <strong>{{ c.destination_iata }}</strong>
+            {% if c.price %} — {{ c.price }} {{ c.currency_code or "" }}{% endif %}
+            {% if c.ai_fit_score is not none %} — Fit: {{ c.ai_fit_score }}/100{% endif %}
+            {% if c.ai_rationale %}<br />{{ c.ai_rationale }}{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No candidates yet. (Next step in Phase 1: fetch from Amadeus and store them.)</p>
+    {% endif %}
+  </section>
+
+  <p><a href="{{ url_for('ui.index') }}">Create another search</a></p>
+{% endblock %}
