@@ -63,3 +63,47 @@ def api_get_search(search_id: int):
     search = Search.query.get_or_404(search_id)
     return jsonify(search.to_dict(include_children=True))  # jsonify returns a proper JSON response [web:443]
 
+
+@api_bp.patch("/searches/<int:search_id>")
+def api_patch_search(search_id: int):
+    search = Search.query.get_or_404(search_id)
+    data = request.get_json(silent=True) or {}  # silent=True => returns None instead of raising on invalid JSON [web:447][web:453]
+
+    if "travel_month" in data:
+        search.travel_month = data["travel_month"] or None
+
+    if "duration_days" in data:
+        search.duration_days = data["duration_days"]
+
+    if "max_price" in data:
+        search.max_price = data["max_price"]
+
+    if "currency_code" in data:
+        cc = (data["currency_code"] or "").strip().upper()
+        search.currency_code = cc or None
+
+    if "non_stop" in data:
+        search.non_stop = data["non_stop"]
+
+    if "trip_type" in data:
+        tt = data["trip_type"]
+        search.trip_type = TripType(tt) if tt else None
+
+    if "status" in data:
+        search.status = data["status"]
+
+    if "error_message" in data:
+        search.error_message = data["error_message"]
+
+    db.session.commit()
+    return jsonify(search.to_dict(include_children=True))
+
+
+@api_bp.delete("/searches/<int:search_id>")
+def api_delete_search(search_id: int):
+    search = Search.query.get_or_404(search_id)
+    db.session.delete(search)
+    db.session.commit()
+    return jsonify({"deleted": True, "id": search_id})
+
+
