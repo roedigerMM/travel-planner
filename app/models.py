@@ -56,6 +56,24 @@ class Search(db.Model):
         passive_deletes=True,
     )
 
+    def to_dict(self, include_children=False):
+        data = {
+            "id": self.id,
+            "created_at": self.created_at.isoformat(),
+            "travel_month": self.travel_month,
+            "duration_days": self.duration_days,
+            "max_price": float(self.max_price) if self.max_price is not None else None,
+            "currency_code": self.currency_code,
+            "non_stop": self.non_stop,
+            "trip_type": self.trip_type.value if self.trip_type else None,
+            "status": self.status,
+            "error_message": self.error_message,
+        }
+        if include_children:
+            data["origins"] = [o.to_dict() for o in self.origins]
+            data["candidates"] = [c.to_dict() for c in self.candidates]
+        return data
+
 
 class SearchOrigin(db.Model):
     __tablename__ = "search_origin"
@@ -77,6 +95,14 @@ class SearchOrigin(db.Model):
     )
 
     search = db.relationship("Search", back_populates="origins")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "search_id": self.search_id,
+            "iata_code": self.iata_code,
+            "sub_type": self.sub_type.value,
+        }
 
 
 class DestinationCandidate(db.Model):
@@ -111,3 +137,15 @@ class DestinationCandidate(db.Model):
             name="uq_candidate_search_origin_dest",
         ),
     )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "search_id": self.search_id,
+            "origin_iata": self.origin_iata,
+            "destination_iata": self.destination_iata,
+            "price": float(self.price) if self.price is not None else None,
+            "currency_code": self.currency_code,
+            "ai_fit_score": self.ai_fit_score,
+            "ai_rationale": self.ai_rationale,
+        }
