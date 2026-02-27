@@ -1,4 +1,4 @@
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 
 from . import api_bp
 from ...extensions import db
@@ -111,5 +111,21 @@ def api_delete_search(search_id: int):
 def api_get_candidates(search_id: int):
     search = Search.query.get_or_404(search_id)
     return jsonify([c.to_dict() for c in search.candidates])
+
+
+@api_bp.get("/locations/suggest")
+def api_locations_suggest():
+    keyword = (request.args.get("keyword") or "").strip()
+    subtypes_raw = (request.args.get("subTypes") or "AIRPORT,CITY").strip()
+
+    if not keyword or len(keyword) < 3:
+        return jsonify({"error": "keyword_too_short"}), 400
+
+    subtypes = [s.strip().upper() for s in subtypes_raw.split(",") if s.strip()]
+
+    client = current_app.amadeus
+    items = client.search_locations(keyword=keyword, subtypes=subtypes, limit=5)
+
+    return jsonify(items)
 
 

@@ -4,6 +4,7 @@ from .blueprints.api import api_bp
 from .blueprints.ui import ui_bp
 from .config import Config
 from .extensions import db
+from .services.amadeus_client import AmadeusClient
 
 
 def create_app() -> Flask:
@@ -12,6 +13,13 @@ def create_app() -> Flask:
 
     db.init_app(app)
     register_sqlite_fk_pragma()
+
+    # Instantiate Amadeus client with config
+    app.amadeus = AmadeusClient(
+        base_url=app.config["AMADEUS_BASE_URL"],
+        client_id=app.config.get("AMADEUS_CLIENT_ID") or "",
+        client_secret=app.config.get("AMADEUS_CLIENT_SECRET") or "",
+    )
 
     app.register_blueprint(ui_bp)
     app.register_blueprint(api_bp, url_prefix="/api")
