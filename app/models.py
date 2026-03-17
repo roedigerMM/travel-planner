@@ -18,6 +18,13 @@ class OriginSubType(enum.Enum):
     CITY = "CITY"
 
 
+class SearchOriginStatus(enum.Enum):
+    PENDING = "PENDING"
+    SUCCESS = "SUCCESS"
+    NO_RESULTS = "NO_RESULTS"
+    ERROR = "ERROR"
+
+
 class Search(db.Model):
     __tablename__ = "search"
 
@@ -93,6 +100,12 @@ class SearchOrigin(db.Model):
         db.Enum(OriginSubType, name="origin_sub_type", create_constraint=True),
         nullable=False,
     )
+    status = db.Column(
+        db.Enum(SearchOriginStatus, name="search_origin_status", create_constraint=True),
+        nullable=False,
+        default=SearchOriginStatus.PENDING,
+    )
+    error_message = db.Column(db.Text, nullable=True)
 
     search = db.relationship("Search", back_populates="origins")
 
@@ -102,6 +115,8 @@ class SearchOrigin(db.Model):
             "search_id": self.search_id,
             "iata_code": self.iata_code,
             "sub_type": self.sub_type.value,
+            "status": self.status.value if self.status else None,
+            "error_message": self.error_message,
         }
 
 
@@ -122,6 +137,7 @@ class DestinationCandidate(db.Model):
 
     price = db.Column(db.Numeric(10, 2), nullable=True)
     currency_code = db.Column(db.String(3), nullable=True)
+    departure_date = db.Column(db.String(10), nullable=True)
 
     ai_fit_score = db.Column(db.Integer, nullable=True)
     ai_rationale = db.Column(db.Text, nullable=True)
@@ -146,6 +162,7 @@ class DestinationCandidate(db.Model):
             "destination_iata": self.destination_iata,
             "price": float(self.price) if self.price is not None else None,
             "currency_code": self.currency_code,
+            "departure_date": self.departure_date,
             "ai_fit_score": self.ai_fit_score,
             "ai_rationale": self.ai_rationale,
         }
