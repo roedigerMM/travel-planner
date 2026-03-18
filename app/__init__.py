@@ -4,6 +4,7 @@ from .blueprints.api import api_bp
 from .blueprints.ui import ui_bp
 from .config import Config
 from .extensions import db
+from .services.ai_clients import AnthropicEnricher, OpenAINormalizer
 from .services.amadeus_client import AmadeusClient
 
 
@@ -19,6 +20,16 @@ def create_app() -> Flask:
         base_url=app.config["AMADEUS_BASE_URL"],
         client_id=app.config.get("AMADEUS_CLIENT_ID") or "",
         client_secret=app.config.get("AMADEUS_CLIENT_SECRET") or "",
+    )
+    app.openai_normalizer = OpenAINormalizer(
+        api_base=app.config["OPENAI_API_BASE"],
+        api_key=app.config.get("OPENAI_API_KEY") or "",
+        model=app.config["OPENAI_MODEL"],
+    )
+    app.anthropic_enricher = AnthropicEnricher(
+        api_base=app.config["ANTHROPIC_API_BASE"],
+        api_key=app.config.get("ANTHROPIC_API_KEY") or "",
+        model=app.config["ANTHROPIC_MODEL"],
     )
 
     app.register_blueprint(ui_bp)
