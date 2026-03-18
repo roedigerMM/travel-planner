@@ -1,3 +1,4 @@
+import json
 import re
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation
@@ -69,6 +70,70 @@ def create_search_with_origins(normalized: dict[str, Any]) -> Search:
                 status=SearchOriginStatus.PENDING,
             )
         )
+
+    db.session.commit()
+    return search
+
+
+def create_and_execute_search(normalized: dict[str, Any]) -> Search:
+    search = create_search_with_origins(normalized)
+    any_success = False
+    any_error = False
+
+    for origin in search.origins:
+        try:
+            offers = current_app.amadeus.search_destinations(
+                origin_iata=origin.iata_code,
+                travel_month=search.travel_month,
+                duration_days=search.duration_days,
+                max_price=float(search.max_price) if search.max_price is not None else None,
+                currency_code=search.currency_code,
+                non_stop=search.non_stop,
+            )
+        except Exception as exc:  # noqa: BLE001
+            origin.status = SearchOriginStatus.ERROR
+            origin.error_message = str(exc)
+            any_error = True
+            continue
+
+        if not offers:
+            origin.status = SearchOriginStatus.NO_RESULTS
+            origin.error_message = "No destination candidates were returned for this origin."
+            continue
+
+        origin.status = SearchOriginStatus.SUCCESS
+        origin.error_message = None
+        any_success = True
+
+        seen_destinations = set()
+        for offer in offers:
+            destination_iata = offer["destination_iata"]
+            if destination_iata in seen_destinations:
+                continue
+            seen_destinations.add(destination_iata)
+
+            db.session.add(
+                DestinationCandidate(
+                    search_id=search.id,
+                    origin_iata=origin.iata_code,
+                    destination_iata=destination_iata,
+                    price=offer.get("price"),
+                    currency_code=offer.get("currency_code"),
+                    departure_date=offer.get("departure_date"),
+                    raw_json=json.dumps(offer.get("raw_json") or {}),
+                )
+            )
+
+    if any_success and any_error:
+        search.status = "PARTIAL"
+    elif any_success:
+        search.status = "COMPLETED"
+    elif any_error:
+        search.status = "ERROR"
+        search.error_message = "All origin lookups failed."
+    else:
+        search.status = "NO_RESULTS"
+        search.error_message = "No destination candidates were found."
 
     db.session.commit()
     return search

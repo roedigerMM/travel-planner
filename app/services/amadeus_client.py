@@ -1,4 +1,5 @@
 import time
+
 import requests
 
 
@@ -14,6 +15,8 @@ class AmadeusClient:
         now = int(time.time())
         if self._token and now < self._token_expires_at:
             return self._token
+        if not self.client_id or not self.client_secret:
+            raise RuntimeError("Amadeus credentials are not configured.")
 
         url = f"{self.base_url}/v1/security/oauth2/token"
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
@@ -36,13 +39,7 @@ class AmadeusClient:
         token = self._get_access_token()
         return {"Authorization": f"Bearer {token}"}
 
-    # NEW: airport & city search
     def search_locations(self, keyword: str, subtypes=None, limit: int = 5) -> list[dict]:
-        """
-        Call Airport & City Search API to suggest airports/cities for autocomplete.
-
-        subtypes: list like ["AIRPORT","CITY"]
-        """
         if subtypes is None:
             subtypes = ["AIRPORT", "CITY"]
 
@@ -58,7 +55,6 @@ class AmadeusClient:
         resp.raise_for_status()
         payload = resp.json()
 
-        # The spec shows data[].subType, data[].iataCode, data[].name, etc. [web:117][web:112]
         items = []
         for item in payload.get("data", []):
             items.append(
@@ -72,3 +68,57 @@ class AmadeusClient:
                 }
             )
         return items
+
+    def search_destinations(
+        self,
+        origin_iata: str,
+        travel_month: str | None = None,
+        duration_days: int | None = None,
+        max_price: float | None = None,
+        currency_code: str | None = None,
+        non_stop: bool | None = None,
+    ) -> list[dict]:
+        params = {
+            "origin": origin_iata,
+            "viewBy": "DESTINATION",
+        }
+        if travel_month:
+            params["departureDate"] = f"{travel_month}-01"
+        if duration_days:
+            params["duration"] = duration_days
+        if max_price is not None:
+            params["maxPrice"] = max_price
+        if currency_code:
+            params["currency"] = currency_code
+        if non_stop is not None:
+            params["nonStop"] = str(non_stop).lower()
+
+        url = f"{self.base_url}/v1/shopping/flight-destinations"
+        resp = requests.get(url, headers=self._auth_headers(), params=params, timeout=30)
+        resp.raise_for_status()
+        payload = resp.json()
+
+        destinations = []
+        for item in payload.get("data", []):
+            price = item.get("price") or {}
+            departure_value = item.get("departureDate") or item.get("departureDates")
+            if isinstance(departure_value, list):
+                departure_date = departure_value[0] if departure_value else None
+            else:
+                departure_date = departure_value
+
+            destination_iata = item.get("destination")
+            if not destination_iata:
+                continue
+
+            destinations.append(
+                {
+                    "destination_iata": destination_iata,
+                    "price": price.get("total"),
+                    "currency_code": price.get("currency") or currency_code,
+                    "departure_date": departure_date,
+                    "raw_json": item,
+                }
+            )
+
+        return destinations

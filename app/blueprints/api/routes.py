@@ -1,12 +1,13 @@
 from flask import jsonify, request, current_app
 
 from . import api_bp
+from ...extensions import db
 from ...models import Search
 from ...services.ai_clients import AIProviderError
 from ...services.search_service import (
     ValidationError,
     build_results_payload,
-    create_search_with_origins,
+    create_and_execute_search,
     enrich_candidates,
     normalize_payload,
 )
@@ -22,7 +23,7 @@ def api_create_search():
     data = request.get_json(silent=True) or {}
     try:
         normalized = normalize_payload(data, allow_free_text=True)
-        search = create_search_with_origins(normalized)
+        search = create_and_execute_search(normalized)
     except ValidationError as exc:
         return jsonify({"error": "validation_error", "message": str(exc)}), 400
     except AIProviderError as exc:
@@ -90,4 +91,3 @@ def api_enrich_search(search_id: int):
         return jsonify({"search_id": search.id, "updated": False, "message": str(exc)}), 502
 
     return jsonify({"search_id": search.id, **result})
-
