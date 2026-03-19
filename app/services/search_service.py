@@ -92,7 +92,7 @@ def create_and_execute_search(normalized: dict[str, Any]) -> Search:
             )
         except Exception as exc:  # noqa: BLE001
             origin.status = SearchOriginStatus.ERROR
-            origin.error_message = str(exc)
+            origin.error_message = current_app.amadeus.format_error(exc)
             any_error = True
             continue
 

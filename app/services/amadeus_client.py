@@ -39,6 +39,24 @@ class AmadeusClient:
         token = self._get_access_token()
         return {"Authorization": f"Bearer {token}"}
 
+    @staticmethod
+    def format_error(exc: Exception) -> str:
+        if isinstance(exc, requests.HTTPError) and exc.response is not None:
+            try:
+                payload = exc.response.json()
+                errors = payload.get("errors") or []
+                if errors:
+                    first = errors[0]
+                    code = first.get("code")
+                    title = first.get("title")
+                    detail = first.get("detail")
+                    parts = [part for part in (code, title, detail) if part]
+                    if parts:
+                        return " | ".join(str(part) for part in parts)
+            except ValueError:
+                pass
+        return str(exc)
+
     def search_locations(self, keyword: str, subtypes=None, limit: int = 5) -> list[dict]:
         if subtypes is None:
             subtypes = ["AIRPORT", "CITY"]
@@ -78,14 +96,9 @@ class AmadeusClient:
         currency_code: str | None = None,
         non_stop: bool | None = None,
     ) -> list[dict]:
-        params = {
-            "origin": origin_iata,
-            "viewBy": "DESTINATION",
-        }
+        params = {"origin": origin_iata}
         if travel_month:
             params["departureDate"] = f"{travel_month}-01"
-        if duration_days:
-            params["duration"] = duration_days
         if max_price is not None:
             params["maxPrice"] = max_price
         if currency_code:
