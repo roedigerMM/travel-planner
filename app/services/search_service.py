@@ -15,6 +15,7 @@ from ..models import (
     SearchOriginStatus,
     TripType,
 )
+from .demo_travel_data import get_demo_destinations
 
 _MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 _IATA_RE = re.compile(r"^[A-Z]{3}$")
@@ -81,18 +82,14 @@ def create_and_execute_search(normalized: dict[str, Any]) -> Search:
     any_error = False
 
     for origin in search.origins:
-        try:
-            offers = current_app.amadeus.search_destinations(
-                origin_iata=origin.iata_code,
-                travel_month=search.travel_month,
-                duration_days=search.duration_days,
-                max_price=float(search.max_price) if search.max_price is not None else None,
-                currency_code=search.currency_code,
-                non_stop=search.non_stop,
-            )
-        except Exception as exc:  # noqa: BLE001
+        offers, error_message, used_demo_data = fetch_destination_offers(
+            origin_iata=origin.iata_code,
+            search=search,
+        )
+
+        if error_message and not offers:
             origin.status = SearchOriginStatus.ERROR
-            origin.error_message = current_app.amadeus.format_error(exc)
+            origin.error_message = error_message
             any_error = True
             continue
 
@@ -102,7 +99,7 @@ def create_and_execute_search(normalized: dict[str, Any]) -> Search:
             continue
 
         origin.status = SearchOriginStatus.SUCCESS
-        origin.error_message = None
+        origin.error_message = "Demo data fallback used." if used_demo_data else None
         any_success = True
 
         seen_destinations = set()
@@ -137,6 +134,31 @@ def create_and_execute_search(normalized: dict[str, Any]) -> Search:
 
     db.session.commit()
     return search
+
+
+def fetch_destination_offers(origin_iata: str, search: Search) -> tuple[list[dict], str | None, bool]:
+    mode = (current_app.config.get("TRAVEL_DATA_MODE") or "auto").lower()
+
+    if mode == "demo":
+        return get_demo_destinations(origin_iata), None, True
+
+    try:
+        offers = current_app.amadeus.search_destinations(
+            origin_iata=origin_iata,
+            travel_month=search.travel_month,
+            duration_days=search.duration_days,
+            max_price=float(search.max_price) if search.max_price is not None else None,
+            currency_code=search.currency_code,
+            non_stop=search.non_stop,
+        )
+        return offers, None, False
+    except Exception as exc:  # noqa: BLE001
+        error_message = current_app.amadeus.format_error(exc)
+        if mode == "auto":
+            demo_offers = get_demo_destinations(origin_iata)
+            if demo_offers:
+                return demo_offers, error_message, True
+        return [], error_message, False
 
 
 def aggregate_candidates(candidates: list[DestinationCandidate]) -> list[dict[str, Any]]:
