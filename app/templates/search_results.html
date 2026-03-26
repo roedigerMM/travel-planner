@@ -25,10 +25,15 @@
 
   <section>
     <h2>Origins</h2>
-    {% if search.origins %}
+    {% if origins %}
       <ul>
-        {% for origin in search.origins %}
-          <li>{{ origin.iata_code }} ({{ origin.sub_type.value }})</li>
+        {% for origin in origins %}
+          <li>
+            <strong>{{ origin.iata_code }}</strong> ({{ origin.sub_type }}) — {{ origin.status }}
+            {% if origin.error_message %}
+              <br />{{ origin.error_message }}
+            {% endif %}
+          </li>
         {% endfor %}
       </ul>
     {% else %}
@@ -37,20 +42,22 @@
   </section>
 
   <section>
-    <h2>Destination candidates</h2>
-    {% if search.candidates %}
+    <h2>Merged destination candidates</h2>
+    {% if candidates %}
       <ul>
-        {% for c in search.candidates %}
+        {% for c in candidates %}
           <li>
             <strong>{{ c.destination_iata }}</strong>
             {% if c.price %} — {{ c.price }} {{ c.currency_code or "" }}{% endif %}
+            {% if c.origin_count %} — Origins: {{ c.origin_iatas|join(", ") }}{% endif %}
+            {% if c.departure_date %} — Departure: {{ c.departure_date }}{% endif %}
             {% if c.ai_fit_score is not none %} — Fit: {{ c.ai_fit_score }}/100{% endif %}
             {% if c.ai_rationale %}<br />{{ c.ai_rationale }}{% endif %}
           </li>
         {% endfor %}
       </ul>
     {% else %}
-      <p>No candidates yet. (Next step in Phase 1: fetch from Amadeus and store them.)</p>
+      <p>No candidates were stored for this search.</p>
     {% endif %}
   </section>
 
