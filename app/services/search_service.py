@@ -49,6 +49,10 @@ def normalize_payload(data: dict[str, Any], *, allow_free_text: bool = False) ->
     }
 
 
+def get_recent_searches(limit: int = 5) -> list[Search]:
+    return Search.query.order_by(Search.created_at.desc()).limit(limit).all()
+
+
 def create_search_with_origins(normalized: dict[str, Any]) -> Search:
     search = Search(
         travel_month=normalized["travel_month"],

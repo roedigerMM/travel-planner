@@ -6,6 +6,7 @@ from ...services.search_service import (
     ValidationError,
     build_results_payload,
     create_and_execute_search,
+    get_recent_searches,
     normalize_payload,
 )
 
@@ -13,13 +14,19 @@ from ...services.search_service import (
 @ui_bp.get("/")
 def index():
     trip_types = [t.value for t in TripType]
-    return render_template("index.html", trip_types=trip_types, error=None)
+    return render_template(
+        "index.html",
+        trip_types=trip_types,
+        recent_searches=get_recent_searches(),
+        error=None,
+        form_data=default_form_data(),
+    )
 
 
 @ui_bp.post("/searches")
 def create_search():
     payload = {
-        "origins": request.form.get("origins") or "",
+        "origins": form_origins_from_request(),
         "travel_month": request.form.get("travel_month") or None,
         "duration_days": request.form.get("duration_days") or None,
         "max_price": request.form.get("max_price") or None,
@@ -32,7 +39,26 @@ def create_search():
         search = create_and_execute_search(normalized)
     except ValidationError as exc:
         trip_types = [t.value for t in TripType]
-        return render_template("index.html", trip_types=trip_types, error=str(exc)), 400
+        form_data = default_form_data()
+        form_data.update(
+            {
+                "travel_month": payload["travel_month"] or "",
+                "duration_days": payload["duration_days"] or "",
+                "max_price": payload["max_price"] or "",
+                "currency_code": payload["currency_code"] or "EUR",
+                "non_stop": payload["non_stop"] in ("on", True, "true", "1"),
+                "trip_type": payload["trip_type"] or "",
+                "origins_manual": request.form.get("origins_manual") or "",
+                "origins": payload["origins"] if isinstance(payload["origins"], list) else [],
+            }
+        )
+        return render_template(
+            "index.html",
+            trip_types=trip_types,
+            recent_searches=get_recent_searches(),
+            error=str(exc),
+            form_data=form_data,
+        ), 400
 
     return redirect(url_for("ui.view_search", search_id=search.id))
 
@@ -47,3 +73,35 @@ def view_search(search_id: int):
         origins=payload["origins"],
         candidates=payload["candidates"],
     )
+
+
+def form_origins_from_request():
+    iatas = request.form.getlist("origin_iata")
+    sub_types = request.form.getlist("origin_sub_type")
+    selected = []
+    for index, iata in enumerate(iatas):
+        code = (iata or "").strip()
+        if not code:
+            continue
+        selected.append(
+            {
+                "iata": code,
+                "sub_type": sub_types[index] if index < len(sub_types) else "AIRPORT",
+            }
+        )
+    if selected:
+        return selected
+    return request.form.get("origins_manual") or request.form.get("origins") or ""
+
+
+def default_form_data():
+    return {
+        "origins": [],
+        "origins_manual": "",
+        "travel_month": "",
+        "duration_days": "",
+        "max_price": "",
+        "currency_code": "EUR",
+        "non_stop": False,
+        "trip_type": "",
+    }

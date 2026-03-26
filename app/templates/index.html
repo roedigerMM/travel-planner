@@ -3,75 +3,120 @@
 {% block title %}Destination Discovery{% endblock %}
 
 {% block content %}
-  <h1>Destination Discovery</h1>
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Phase 1 MVP</p>
+      <h1>Destination Discovery</h1>
+      <p class="lede">Discover travel ideas from multiple origins with a server-rendered flow and lightweight enhancements.</p>
+    </div>
+  </section>
 
   {% if error %}
-    <p style="color: red;">{{ error }}</p>
+    <p class="notice notice-error">{{ error }}</p>
   {% endif %}
 
-  <form method="post" action="{{ url_for('ui.create_search') }}">
-    <div>
-      <label for="origins">Origins (Phase 1: comma-separated IATA codes)</label><br />
-      <input
-        id="origins"
-        name="origins"
-        type="text"
-        placeholder="BER, HAM, PRG"
-        required
-      />
+  <section class="grid">
+    <div class="card">
+      <h2>Plan a Search</h2>
+      <form method="post" action="{{ url_for('ui.create_search') }}" data-origin-picker>
+        <div class="field-group">
+          <label for="origin-search">Origins</label>
+          <input
+            id="origin-search"
+            type="text"
+            autocomplete="off"
+            placeholder="Search airports or cities"
+            data-origin-search
+          />
+          <small>Type at least three characters, then add one or more suggestions.</small>
+          <div class="suggestions" data-origin-suggestions></div>
+          <div class="chip-list" data-selected-origins>
+            {% for origin in form_data.origins %}
+              <div class="chip" data-origin-chip>
+                <span>{{ origin.iata or origin.iata_code }} · {{ origin.sub_type }}</span>
+                <button type="button" data-remove-origin>&times;</button>
+                <input type="hidden" name="origin_iata" value="{{ origin.iata or origin.iata_code }}" />
+                <input type="hidden" name="origin_sub_type" value="{{ origin.sub_type }}" />
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="origins_manual">Manual fallback</label>
+          <input
+            id="origins_manual"
+            name="origins_manual"
+            type="text"
+            placeholder="BER, HAM, PRG"
+            value="{{ form_data.origins_manual }}"
+          />
+          <small>Optional fallback if you want to paste IATA codes instead of using suggestions.</small>
+        </div>
+
+        <div class="two-column">
+          <div class="field-group">
+            <label for="travel_month">Travel month (optional)</label>
+            <input id="travel_month" name="travel_month" type="month" value="{{ form_data.travel_month }}" />
+            <small>Format stored as YYYY-MM.</small>
+          </div>
+          <div class="field-group">
+            <label for="duration_days">Duration in days (optional)</label>
+            <input id="duration_days" name="duration_days" type="number" min="1" value="{{ form_data.duration_days }}" />
+          </div>
+        </div>
+
+        <div class="two-column">
+          <div class="field-group">
+            <label for="max_price">Max price (optional)</label>
+            <input id="max_price" name="max_price" type="number" min="0" step="0.01" value="{{ form_data.max_price }}" />
+          </div>
+          <div class="field-group">
+            <label for="currency_code">Currency</label>
+            <input
+              id="currency_code"
+              name="currency_code"
+              type="text"
+              maxlength="3"
+              value="{{ form_data.currency_code }}"
+            />
+          </div>
+        </div>
+
+        <div class="two-column">
+          <div class="field-group">
+            <label for="trip_type">Trip type (optional)</label>
+            <select id="trip_type" name="trip_type">
+              <option value="">—</option>
+              {% for t in trip_types %}
+                <option value="{{ t }}" {% if form_data.trip_type == t %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="checkbox-row">
+            <label for="non_stop">Non-stop only</label>
+            <input id="non_stop" name="non_stop" type="checkbox" {% if form_data.non_stop %}checked{% endif %} />
+          </div>
+        </div>
+
+        <button type="submit" class="button-primary">Create search</button>
+      </form>
     </div>
 
-    <br />
-
-    <div>
-      <label for="travel_month">Travel month (optional)</label><br />
-      <input id="travel_month" name="travel_month" type="month" />
-      <small>(Format: YYYY-MM)</small>
-    </div>
-
-    <br />
-
-    <div>
-      <label for="duration_days">Duration in days (optional)</label><br />
-      <input id="duration_days" name="duration_days" type="number" min="1" />
-    </div>
-
-    <br />
-
-    <div>
-      <label for="max_price">Max price (optional)</label><br />
-      <input id="max_price" name="max_price" type="number" min="0" step="0.01" />
-      <input
-        id="currency_code"
-        name="currency_code"
-        type="text"
-        value="EUR"
-        maxlength="3"
-        size="4"
-      />
-    </div>
-
-    <br />
-
-    <div>
-      <label for="non_stop">Non-stop only</label>
-      <input id="non_stop" name="non_stop" type="checkbox" />
-    </div>
-
-    <br />
-
-    <div>
-      <label for="trip_type">Trip type (optional)</label><br />
-      <select id="trip_type" name="trip_type">
-        <option value="">—</option>
-        {% for t in trip_types %}
-          <option value="{{ t }}">{{ t }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <br />
-
-    <button type="submit">Create search</button>
-  </form>
+    <aside class="card">
+      <h2>Recent Searches</h2>
+      {% if recent_searches %}
+        <ul class="recent-list">
+          {% for item in recent_searches %}
+            <li>
+              <a href="{{ url_for('ui.view_search', search_id=item.id) }}">Search #{{ item.id }}</a>
+              <span>{{ item.status }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No searches yet. Your latest searches will show up here.</p>
+      {% endif %}
+    </aside>
+  </section>
 {% endblock %}
