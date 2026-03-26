@@ -22,6 +22,7 @@ function renderCandidates(container, candidates) {
     <li class="candidate-card">
       <strong>${candidate.destination_iata}</strong>
       ${candidate.price !== null ? `<span> — ${candidate.price.toFixed(2)} ${candidate.currency_code || ""}</span>` : ""}
+      ${candidate.source === "demo" ? "<p><em>Demo data fallback</em></p>" : ""}
       <p>Origins: ${candidate.origin_iatas.join(", ")}</p>
       ${candidate.departure_date ? `<p>Departure: ${candidate.departure_date}</p>` : ""}
       ${candidate.ai_fit_score !== null ? `<p><strong>Fit:</strong> ${candidate.ai_fit_score}/100</p>` : ""}

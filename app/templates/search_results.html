@@ -78,6 +78,7 @@
             <li class="candidate-card">
               <strong>{{ c.destination_iata }}</strong>
               {% if c.price %}<span> — {{ c.price }} {{ c.currency_code or "" }}</span>{% endif %}
+              {% if c.source == "demo" %}<p><em>Demo data fallback</em></p>{% endif %}
               <p>Origins: {{ c.origin_iatas|join(", ") }}</p>
               {% if c.departure_date %}<p>Departure: {{ c.departure_date }}</p>{% endif %}
               {% if c.ai_fit_score is not none %}<p><strong>Fit:</strong> {{ c.ai_fit_score }}/100</p>{% endif %}

@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from flask import current_app
+from sqlalchemy.exc import OperationalError
 
 from ..extensions import db
 from ..models import (
@@ -50,7 +51,10 @@ def normalize_payload(data: dict[str, Any], *, allow_free_text: bool = False) ->
 
 
 def get_recent_searches(limit: int = 5) -> list[Search]:
-    return Search.query.order_by(Search.created_at.desc()).limit(limit).all()
+    try:
+        return Search.query.order_by(Search.created_at.desc()).limit(limit).all()
+    except OperationalError:
+        return []
 
 
 def create_search_with_origins(normalized: dict[str, Any]) -> Search:
@@ -179,6 +183,7 @@ def aggregate_candidates(candidates: list[DestinationCandidate]) -> list[dict[st
                 "origin_count": 0,
                 "ai_fit_score": candidate.ai_fit_score,
                 "ai_rationale": candidate.ai_rationale,
+                "source": "live",
             }
 
         item = merged[destination]
@@ -195,6 +200,13 @@ def aggregate_candidates(candidates: list[DestinationCandidate]) -> list[dict[st
         if candidate.ai_fit_score is not None:
             item["ai_fit_score"] = candidate.ai_fit_score
             item["ai_rationale"] = candidate.ai_rationale
+
+        try:
+            raw_payload = json.loads(candidate.raw_json) if candidate.raw_json else {}
+        except json.JSONDecodeError:
+            raw_payload = {}
+        if raw_payload.get("source") == "demo":
+            item["source"] = "demo"
 
     return sorted(
         merged.values(),
@@ -235,7 +247,7 @@ def enrich_candidates(search: Search) -> dict[str, Any]:
             max_price=float(search.max_price) if search.max_price is not None else None,
             currency_code=search.currency_code,
         )
-        score = int(enrichment.get("fit_score", 0))
+        score = normalize_fit_score(enrichment.get("fit_score"))
         rationale = (enrichment.get("rationale") or "").strip() or None
         for candidate in grouped_candidates:
             candidate.ai_fit_score = score
@@ -336,3 +348,14 @@ def normalize_bool(value: Any) -> bool | None:
         if text in {"false", "0", "no", "off"}:
             return False
     raise ValidationError("Non-stop must be a boolean value.")
+
+
+def normalize_fit_score(value: Any) -> int:
+    if value in (None, ""):
+        return 0
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        score = 0
+    score = round(score)
+    return max(0, min(100, int(score)))

@@ -1,6 +1,6 @@
 # app/models.py
 import enum
-from datetime import datetime
+from datetime import UTC, datetime
 
 from .extensions import db
 
@@ -29,7 +29,7 @@ class Search(db.Model):
     __tablename__ = "search"
 
     id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     # Stored as "YYYY-MM"
     travel_month = db.Column(db.String(7), nullable=True)
@@ -143,7 +143,7 @@ class DestinationCandidate(db.Model):
     ai_rationale = db.Column(db.Text, nullable=True)
 
     raw_json = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     search = db.relationship("Search", back_populates="candidates")
 

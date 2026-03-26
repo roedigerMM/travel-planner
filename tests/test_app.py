@@ -78,6 +78,35 @@ def test_api_enrich_updates_candidates(client, app):
         assert candidate.ai_fit_score == 91
 
 
+def test_api_enrich_rounds_non_integer_scores(client, app):
+    app.amadeus.destinations_by_origin = {
+        "BER": [
+            {
+                "destination_iata": "LIS",
+                "price": "210.00",
+                "currency_code": "EUR",
+                "departure_date": "2026-07-01",
+                "raw_json": {},
+            }
+        ]
+    }
+    app.anthropic_enricher.responses = {
+        "LIS": {"fit_score": 8.5, "rationale": "Rounded score case."}
+    }
+    create_response = client.post(
+        "/api/searches",
+        json={"origins": [{"iata": "BER", "sub_type": "AIRPORT"}], "trip_type": "CITY_TRIP"},
+    )
+    search_id = create_response.get_json()["id"]
+
+    response = client.post(f"/api/searches/{search_id}/enrich")
+
+    assert response.status_code == 200
+    with app.app_context():
+        candidate = DestinationCandidate.query.one()
+        assert candidate.ai_fit_score == 8
+
+
 def test_homepage_renders_recent_searches(client, app):
     with app.app_context():
         db.session.add(Search(status="COMPLETED"))
