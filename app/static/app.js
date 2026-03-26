@@ -12,6 +12,25 @@ function createOriginChip(origin) {
   return chip;
 }
 
+function renderCandidates(container, candidates) {
+  if (!candidates || candidates.length === 0) {
+    container.innerHTML = "<p>No candidates were stored for this search.</p>";
+    return;
+  }
+
+  const cards = candidates.map((candidate) => `
+    <li class="candidate-card">
+      <strong>${candidate.destination_iata}</strong>
+      ${candidate.price !== null ? `<span> — ${candidate.price.toFixed(2)} ${candidate.currency_code || ""}</span>` : ""}
+      <p>Origins: ${candidate.origin_iatas.join(", ")}</p>
+      ${candidate.departure_date ? `<p>Departure: ${candidate.departure_date}</p>` : ""}
+      ${candidate.ai_fit_score !== null ? `<p><strong>Fit:</strong> ${candidate.ai_fit_score}/100</p>` : ""}
+      ${candidate.ai_rationale ? `<p>${candidate.ai_rationale}</p>` : ""}
+    </li>
+  `);
+  container.innerHTML = `<ul class="candidate-list">${cards.join("")}</ul>`;
+}
+
 document.querySelectorAll("[data-origin-picker]").forEach((form) => {
   const searchInput = form.querySelector("[data-origin-search]");
   const suggestions = form.querySelector("[data-origin-suggestions]");
@@ -57,6 +76,27 @@ document.querySelectorAll("[data-origin-picker]").forEach((form) => {
       if (error.name !== "AbortError") {
         suggestions.innerHTML = "<span class=\"notice notice-error\">Suggestions are temporarily unavailable.</span>";
       }
+    }
+  });
+});
+
+document.querySelectorAll("[data-enrich-button]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const searchId = button.dataset.searchId;
+    const status = document.querySelector("[data-enrich-status]");
+    const container = document.querySelector("[data-candidates-container]");
+    button.disabled = true;
+    status.textContent = "Running AI enrichment...";
+
+    try {
+      const response = await fetch(`/api/searches/${searchId}/enrich`, { method: "POST" });
+      const payload = await response.json();
+      status.textContent = payload.message || "AI enrichment finished.";
+      renderCandidates(container, payload.candidates || []);
+    } catch (error) {
+      status.textContent = "AI enrichment could not be completed.";
+    } finally {
+      button.disabled = false;
     }
   });
 });

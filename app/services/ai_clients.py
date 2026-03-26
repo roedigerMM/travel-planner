@@ -80,7 +80,11 @@ class AnthropicEnricher:
                 {
                     "role": "user",
                     "content": (
-                        "Return JSON only with fit_score and rationale for this destination match: "
+                        "Return only JSON with keys fit_score and rationale. "
+                        "fit_score must be an integer from 0 to 100. "
+                        "rationale must be a single short sentence. "
+                        "Do not wrap the JSON in markdown fences. "
+                        "Evaluate this destination match: "
                         + json.dumps(
                             {
                                 "destination_iata": destination_iata,
@@ -103,6 +107,23 @@ class AnthropicEnricher:
                 for item in resp.json().get("content", [])
                 if item.get("type") == "text"
             )
-            return json.loads(text)
+            return json.loads(extract_json_object(text))
         except (requests.RequestException, json.JSONDecodeError) as exc:
             raise AIProviderError("Anthropic enrichment is temporarily unavailable.") from exc
+
+
+def extract_json_object(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return stripped[start : end + 1]
+    return stripped

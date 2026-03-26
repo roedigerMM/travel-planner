@@ -3,7 +3,35 @@
 {% block title %}Search #{{ search.id }}{% endblock %}
 
 {% block content %}
-  <h1>Search #{{ search.id }}</h1>
+  <section class="results-header">
+    <div>
+      <p class="eyebrow">Search #{{ search.id }}</p>
+      <h1>{{ search.status }}</h1>
+      <p class="lede">Saved on {{ search.created_at.strftime("%Y-%m-%d %H:%M") }}.</p>
+    </div>
+    <div class="actions">
+      <a class="button-secondary" href="{{ url_for('ui.index') }}">Create another search</a>
+      <button
+        type="button"
+        class="button-primary"
+        data-enrich-button
+        data-search-id="{{ search.id }}"
+        {% if not candidates %}disabled{% endif %}
+      >
+        Enrich with AI
+      </button>
+    </div>
+  </section>
+
+  <p class="notice" data-enrich-status>
+    {% if not search.trip_type %}
+      Add a trip type on future searches to enable AI fit scoring.
+    {% elif not candidates %}
+      Add candidates first before trying AI enrichment.
+    {% else %}
+      AI enrichment updates the candidate list below without a full page reload.
+    {% endif %}
+  </p>
 
   <section>
     <h2>Search settings</h2>
@@ -43,23 +71,23 @@
 
   <section>
     <h2>Merged destination candidates</h2>
-    {% if candidates %}
-      <ul>
-        {% for c in candidates %}
-          <li>
-            <strong>{{ c.destination_iata }}</strong>
-            {% if c.price %} — {{ c.price }} {{ c.currency_code or "" }}{% endif %}
-            {% if c.origin_count %} — Origins: {{ c.origin_iatas|join(", ") }}{% endif %}
-            {% if c.departure_date %} — Departure: {{ c.departure_date }}{% endif %}
-            {% if c.ai_fit_score is not none %} — Fit: {{ c.ai_fit_score }}/100{% endif %}
-            {% if c.ai_rationale %}<br />{{ c.ai_rationale }}{% endif %}
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p>No candidates were stored for this search.</p>
-    {% endif %}
+    <div data-candidates-container>
+      {% if candidates %}
+        <ul class="candidate-list">
+          {% for c in candidates %}
+            <li class="candidate-card">
+              <strong>{{ c.destination_iata }}</strong>
+              {% if c.price %}<span> — {{ c.price }} {{ c.currency_code or "" }}</span>{% endif %}
+              <p>Origins: {{ c.origin_iatas|join(", ") }}</p>
+              {% if c.departure_date %}<p>Departure: {{ c.departure_date }}</p>{% endif %}
+              {% if c.ai_fit_score is not none %}<p><strong>Fit:</strong> {{ c.ai_fit_score }}/100</p>{% endif %}
+              {% if c.ai_rationale %}<p>{{ c.ai_rationale }}</p>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No candidates were stored for this search.</p>
+      {% endif %}
+    </div>
   </section>
-
-  <p><a href="{{ url_for('ui.index') }}">Create another search</a></p>
 {% endblock %}
