@@ -45,6 +45,7 @@ class Search(db.Model):
         db.Enum(TripType, name="trip_type", create_constraint=True),
         nullable=True,
     )
+    preference_summary = db.Column(db.Text, nullable=True)
 
     status = db.Column(db.String(20), nullable=False, default="PENDING")
     error_message = db.Column(db.Text, nullable=True)
@@ -62,6 +63,13 @@ class Search(db.Model):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    preferences = db.relationship(
+        "SearchPreference",
+        back_populates="search",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="SearchPreference.position",
+    )
 
     def to_dict(self, include_children=False):
         data = {
@@ -73,13 +81,41 @@ class Search(db.Model):
             "currency_code": self.currency_code,
             "non_stop": self.non_stop,
             "trip_type": self.trip_type.value if self.trip_type else None,
+            "preference_summary": self.preference_summary,
             "status": self.status,
             "error_message": self.error_message,
         }
         if include_children:
             data["origins"] = [o.to_dict() for o in self.origins]
             data["candidates"] = [c.to_dict() for c in self.candidates]
+            data["preferences"] = [p.to_dict() for p in self.preferences]
         return data
+
+
+class SearchPreference(db.Model):
+    __tablename__ = "search_preference"
+
+    id = db.Column(db.Integer, primary_key=True)
+    search_id = db.Column(
+        db.Integer,
+        db.ForeignKey("search.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    label = db.Column(db.String(80), nullable=False)
+    source = db.Column(db.String(20), nullable=False, default="USER")
+    position = db.Column(db.Integer, nullable=False, default=0)
+
+    search = db.relationship("Search", back_populates="preferences")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "search_id": self.search_id,
+            "label": self.label,
+            "source": self.source,
+            "position": self.position,
+        }
 
 
 class SearchOrigin(db.Model):
