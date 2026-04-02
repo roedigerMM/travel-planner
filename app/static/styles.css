@@ -81,6 +81,48 @@ a {
   padding: 22px;
 }
 
+.preference-chat {
+  margin-bottom: 22px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(12, 107, 119, 0.05);
+}
+
+.chat-header h3 {
+  margin: 0 0 6px;
+}
+
+.chat-header p {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
+.chat-thread {
+  display: grid;
+  gap: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.chat-bubble {
+  max-width: 90%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  line-height: 1.4;
+}
+
+.chat-bubble-assistant {
+  background: white;
+  border: 1px solid var(--border);
+}
+
+.chat-bubble-user {
+  background: rgba(12, 107, 119, 0.12);
+  justify-self: end;
+}
+
 .field-group {
   margin-bottom: 16px;
 }
@@ -93,12 +135,14 @@ a {
 }
 
 .field-group input,
-.field-group select {
+.field-group select,
+.field-group textarea {
   width: 100%;
   padding: 11px 13px;
   border-radius: 12px;
   border: 1px solid var(--border);
   background: white;
+  font: inherit;
 }
 
 .field-group small {

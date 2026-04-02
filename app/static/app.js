@@ -12,6 +12,38 @@ function createOriginChip(origin) {
   return chip;
 }
 
+function createPreferenceChip(label) {
+  const chip = document.createElement("div");
+  chip.className = "chip";
+  chip.dataset.preferenceChip = "true";
+  chip.innerHTML = `
+    <span>${label}</span>
+    <button type="button" data-remove-preference aria-label="Remove ${label}">&times;</button>
+  `;
+  chip.querySelector("[data-remove-preference]").addEventListener("click", () => {
+    chip.remove();
+    updatePreferenceHiddenValue(chip.closest("[data-preference-chat]"));
+  });
+  return chip;
+}
+
+function updatePreferenceHiddenValue(container) {
+  if (!container) {
+    return;
+  }
+  const hidden = container.querySelector("[data-preference-hidden]");
+  const labels = Array.from(container.querySelectorAll("[data-preference-chip] span")).map((el) => el.textContent.trim());
+  hidden.value = labels.join(", ");
+}
+
+function appendChatBubble(thread, role, content) {
+  const bubble = document.createElement("div");
+  bubble.className = `chat-bubble ${role === "assistant" ? "chat-bubble-assistant" : "chat-bubble-user"}`;
+  bubble.textContent = content;
+  thread.appendChild(bubble);
+  thread.scrollTop = thread.scrollHeight;
+}
+
 function renderCandidates(container, candidates) {
   if (!candidates || candidates.length === 0) {
     container.innerHTML = "<p>No candidates were stored for this search.</p>";
@@ -77,6 +109,61 @@ document.querySelectorAll("[data-origin-picker]").forEach((form) => {
       if (error.name !== "AbortError") {
         suggestions.innerHTML = "<span class=\"notice notice-error\">Suggestions are temporarily unavailable.</span>";
       }
+    }
+  });
+});
+
+document.querySelectorAll("[data-preference-chat]").forEach((container) => {
+  const thread = container.querySelector("[data-preference-thread]");
+  const input = container.querySelector("[data-preference-input]");
+  const send = container.querySelector("[data-preference-send]");
+  const chips = container.querySelector("[data-preference-chips]");
+  const summary = container.querySelector("[data-preference-summary]");
+
+  chips.querySelectorAll("[data-remove-preference]").forEach((button) => {
+    button.addEventListener("click", () => {
+      button.closest("[data-preference-chip]").remove();
+      updatePreferenceHiddenValue(container);
+    });
+  });
+  updatePreferenceHiddenValue(container);
+
+  send.addEventListener("click", async () => {
+    const message = input.value.trim();
+    if (!message) {
+      return;
+    }
+
+    appendChatBubble(thread, "user", message);
+    input.value = "";
+    send.disabled = true;
+
+    try {
+      const response = await fetch("/api/preferences/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: message }],
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.message || "Preference chat failed.");
+      }
+
+      if (payload.assistant_message) {
+        appendChatBubble(thread, "assistant", payload.assistant_message);
+      }
+      chips.innerHTML = "";
+      (payload.preferences || []).forEach((preference) => {
+        chips.appendChild(createPreferenceChip(preference.label));
+      });
+      summary.value = payload.preference_summary || "";
+      updatePreferenceHiddenValue(container);
+    } catch (error) {
+      appendChatBubble(thread, "assistant", error.message || "The assistant is temporarily unavailable.");
+    } finally {
+      send.disabled = false;
     }
   });
 });

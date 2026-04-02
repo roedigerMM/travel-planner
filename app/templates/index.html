@@ -19,6 +19,59 @@
     <div class="card">
       <h2>Plan a Search</h2>
       <form method="post" action="{{ url_for('ui.create_search') }}" data-origin-picker>
+        <section class="preference-chat" data-preference-chat>
+          <div class="chat-header">
+            <div>
+              <h3>Preference Assistant</h3>
+              <p>Describe your ideal trip and let the assistant turn it into editable preference tags.</p>
+            </div>
+          </div>
+
+          <div class="chat-thread" data-preference-thread>
+            <div class="chat-bubble chat-bubble-assistant">
+              Tell me what kind of trip you want. You can mention atmosphere, activities, pace, food, weather, or anything else that matters.
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="preference-chat-input">Chat</label>
+            <textarea
+              id="preference-chat-input"
+              rows="3"
+              placeholder="For example: I want a lively walkable city with good food, some nightlife, and warm weather."
+              data-preference-input
+            ></textarea>
+            <button type="button" class="button-secondary" data-preference-send>Ask Assistant</button>
+          </div>
+
+          <div class="field-group">
+            <label>Extracted preferences</label>
+            <div class="chip-list" data-preference-chips>
+              {% if form_data.preferences %}
+                {% for preference in form_data.preferences.split(",") if preference.strip() %}
+                  <div class="chip" data-preference-chip>
+                    <span>{{ preference.strip() }}</span>
+                    <button type="button" data-remove-preference>&times;</button>
+                  </div>
+                {% endfor %}
+              {% endif %}
+            </div>
+            <small>You can remove tags before searching.</small>
+          </div>
+
+          <div class="field-group">
+            <label for="preference_summary">Preference summary</label>
+            <textarea
+              id="preference_summary"
+              name="preference_summary"
+              rows="3"
+              data-preference-summary
+            >{{ form_data.preference_summary }}</textarea>
+          </div>
+
+          <input type="hidden" name="preferences" value="{{ form_data.preferences }}" data-preference-hidden />
+        </section>
+
         <div class="field-group">
           <label for="origin-search">Origins</label>
           <input
@@ -84,18 +137,19 @@
         </div>
 
         <div class="two-column">
+          <div class="checkbox-row">
+            <label for="non_stop">Non-stop only</label>
+            <input id="non_stop" name="non_stop" type="checkbox" {% if form_data.non_stop %}checked{% endif %} />
+          </div>
           <div class="field-group">
-            <label for="trip_type">Trip type (optional)</label>
+            <label for="trip_type">Legacy trip type (optional)</label>
             <select id="trip_type" name="trip_type">
               <option value="">—</option>
               {% for t in trip_types %}
                 <option value="{{ t }}" {% if form_data.trip_type == t %}selected{% endif %}>{{ t }}</option>
               {% endfor %}
             </select>
-          </div>
-          <div class="checkbox-row">
-            <label for="non_stop">Non-stop only</label>
-            <input id="non_stop" name="non_stop" type="checkbox" {% if form_data.non_stop %}checked{% endif %} />
+            <small>Temporary compatibility field while we migrate fully to AI-derived preferences.</small>
           </div>
         </div>
 
