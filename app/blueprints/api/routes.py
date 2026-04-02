@@ -10,12 +10,28 @@ from ...services.search_service import (
     create_and_execute_search,
     enrich_candidates,
     normalize_payload,
+    normalize_preference_chat_response,
 )
 
 
 @api_bp.get("/health")
 def health():
     return jsonify(status="ok")
+
+
+@api_bp.post("/preferences/chat")
+def api_preferences_chat():
+    data = request.get_json(silent=True) or {}
+    messages = data.get("messages") or []
+    try:
+        result = current_app.openai_normalizer.generate_preferences(messages)
+        normalized = normalize_preference_chat_response(result)
+    except AIProviderError as exc:
+        return jsonify({"error": "preference_chat_unavailable", "message": str(exc)}), 503
+    except ValidationError as exc:
+        return jsonify({"error": "validation_error", "message": str(exc)}), 400
+
+    return jsonify(normalized)
 
 
 @api_bp.post("/searches")

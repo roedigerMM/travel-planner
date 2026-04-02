@@ -47,6 +47,52 @@ class OpenAINormalizer:
         except (requests.RequestException, KeyError, IndexError, json.JSONDecodeError) as exc:
             raise AIProviderError("OpenAI normalization is temporarily unavailable.") from exc
 
+    def generate_preferences(self, messages: list[dict[str, str]]) -> dict[str, Any]:
+        if not self.api_key:
+            raise AIProviderError("OpenAI API key is not configured.")
+
+        conversation = []
+        for item in messages:
+            role = item.get("role") or "user"
+            content = item.get("content") or ""
+            if not content.strip():
+                continue
+            conversation.append({"role": role, "content": content.strip()})
+
+        if not conversation:
+            raise AIProviderError("No chat input was provided for preference generation.")
+
+        url = f"{self.api_base}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.model,
+            "temperature": 0.2,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a travel preference assistant. Return only JSON with keys "
+                        "assistant_message, preference_summary, and preferences. "
+                        "preferences must be an array of short objects with label and source. "
+                        "Use source AI for generated tags. "
+                        "assistant_message should be brief and helpful."
+                    ),
+                },
+                *conversation,
+            ],
+        }
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=30)
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            return json.loads(content)
+        except (requests.RequestException, KeyError, IndexError, json.JSONDecodeError) as exc:
+            raise AIProviderError("OpenAI preference chat is temporarily unavailable.") from exc
+
 
 class AnthropicEnricher:
     def __init__(self, api_base: str, api_key: str, model: str):

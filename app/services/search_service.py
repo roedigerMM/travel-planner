@@ -53,6 +53,15 @@ def normalize_payload(data: dict[str, Any], *, allow_free_text: bool = False) ->
     }
 
 
+def normalize_preference_chat_response(payload: dict[str, Any]) -> dict[str, Any]:
+    assistant_message = str(payload.get("assistant_message") or "").strip()
+    return {
+        "assistant_message": assistant_message,
+        "preference_summary": normalize_preference_summary(payload.get("preference_summary")),
+        "preferences": normalize_preferences(payload.get("preferences")),
+    }
+
+
 def get_recent_searches(limit: int = 5) -> list[Search]:
     try:
         return Search.query.order_by(Search.created_at.desc()).limit(limit).all()
