@@ -24,8 +24,10 @@
   </section>
 
   <p class="notice" data-enrich-status>
-    {% if not search.trip_type %}
-      Add a trip type on future searches to enable AI fit scoring.
+    {% if not search.preferences and not search.preference_summary and not search.trip_type %}
+      Add preferences first to prepare this search for AI enrichment.
+    {% elif not search.trip_type %}
+      Preference-based enrichment is the next migration step. This search already saved your preferences, but AI fit scoring still uses the legacy trip type behind the scenes for now.
     {% elif not candidates %}
       Add candidates first before trying AI enrichment.
     {% else %}
@@ -46,9 +48,23 @@
         {% endif %}
       </li>
       <li><strong>Non-stop:</strong> {{ "Yes" if search.non_stop else "No" }}</li>
-      <li><strong>Trip type:</strong> {{ search.trip_type.value if search.trip_type else "—" }}</li>
       <li><strong>Status:</strong> {{ search.status }}</li>
     </ul>
+    {% if search.preference_summary %}
+      <p><strong>Preference summary:</strong> {{ search.preference_summary }}</p>
+    {% endif %}
+    {% if search.preferences %}
+      <div class="chip-list">
+        {% for preference in search.preferences %}
+          <div class="chip">
+            <span>{{ preference.label }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% if search.trip_type %}
+      <p><strong>Legacy trip type:</strong> {{ search.trip_type.value }}</p>
+    {% endif %}
   </section>
 
   <section>

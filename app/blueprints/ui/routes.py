@@ -1,7 +1,7 @@
 from flask import render_template, request, redirect, url_for
 
 from . import ui_bp
-from ...models import Search, TripType
+from ...models import Search
 from ...services.search_service import (
     ValidationError,
     build_results_payload,
@@ -13,10 +13,8 @@ from ...services.search_service import (
 
 @ui_bp.get("/")
 def index():
-    trip_types = [t.value for t in TripType]
     return render_template(
         "index.html",
-        trip_types=trip_types,
         recent_searches=get_recent_searches(),
         error=None,
         form_data=default_form_data(),
@@ -40,7 +38,6 @@ def create_search():
         normalized = normalize_payload(payload)
         search = create_and_execute_search(normalized)
     except ValidationError as exc:
-        trip_types = [t.value for t in TripType]
         form_data = default_form_data()
         form_data.update(
             {
@@ -58,7 +55,6 @@ def create_search():
         )
         return render_template(
             "index.html",
-            trip_types=trip_types,
             recent_searches=get_recent_searches(),
             error=str(exc),
             form_data=form_data,

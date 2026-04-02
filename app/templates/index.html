@@ -136,21 +136,9 @@
           </div>
         </div>
 
-        <div class="two-column">
-          <div class="checkbox-row">
-            <label for="non_stop">Non-stop only</label>
-            <input id="non_stop" name="non_stop" type="checkbox" {% if form_data.non_stop %}checked{% endif %} />
-          </div>
-          <div class="field-group">
-            <label for="trip_type">Legacy trip type (optional)</label>
-            <select id="trip_type" name="trip_type">
-              <option value="">—</option>
-              {% for t in trip_types %}
-                <option value="{{ t }}" {% if form_data.trip_type == t %}selected{% endif %}>{{ t }}</option>
-              {% endfor %}
-            </select>
-            <small>Temporary compatibility field while we migrate fully to AI-derived preferences.</small>
-          </div>
+        <div class="checkbox-row">
+          <label for="non_stop">Non-stop only</label>
+          <input id="non_stop" name="non_stop" type="checkbox" {% if form_data.non_stop %}checked{% endif %} />
         </div>
 
         <button type="submit" class="button-primary">Create search</button>
