@@ -33,6 +33,8 @@ def create_search():
         "currency_code": request.form.get("currency_code") or None,
         "non_stop": request.form.get("non_stop"),
         "trip_type": request.form.get("trip_type") or None,
+        "preferences": request.form.get("preferences") or None,
+        "preference_summary": request.form.get("preference_summary") or None,
     }
     try:
         normalized = normalize_payload(payload)
@@ -48,6 +50,8 @@ def create_search():
                 "currency_code": payload["currency_code"] or "EUR",
                 "non_stop": payload["non_stop"] in ("on", True, "true", "1"),
                 "trip_type": payload["trip_type"] or "",
+                "preferences": payload["preferences"] or "",
+                "preference_summary": payload["preference_summary"] or "",
                 "origins_manual": request.form.get("origins_manual") or "",
                 "origins": payload["origins"] if isinstance(payload["origins"], list) else [],
             }
@@ -104,4 +108,6 @@ def default_form_data():
         "currency_code": "EUR",
         "non_stop": False,
         "trip_type": "",
+        "preferences": "",
+        "preference_summary": "",
     }

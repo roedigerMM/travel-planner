@@ -14,6 +14,7 @@ from ..models import (
     Search,
     SearchOrigin,
     SearchOriginStatus,
+    SearchPreference,
     TripType,
 )
 from .demo_travel_data import get_demo_destinations
@@ -47,6 +48,8 @@ def normalize_payload(data: dict[str, Any], *, allow_free_text: bool = False) ->
         "currency_code": normalize_currency(payload.get("currency_code")),
         "non_stop": normalize_bool(payload.get("non_stop")),
         "trip_type": normalize_trip_type(payload.get("trip_type")),
+        "preferences": normalize_preferences(payload.get("preferences")),
+        "preference_summary": normalize_preference_summary(payload.get("preference_summary")),
     }
 
 
@@ -65,6 +68,7 @@ def create_search_with_origins(normalized: dict[str, Any]) -> Search:
         currency_code=normalized["currency_code"],
         non_stop=normalized["non_stop"],
         trip_type=normalized["trip_type"],
+        preference_summary=normalized["preference_summary"],
         status="PENDING",
     )
     db.session.add(search)
@@ -77,6 +81,16 @@ def create_search_with_origins(normalized: dict[str, Any]) -> Search:
                 iata_code=origin["iata_code"],
                 sub_type=origin["sub_type"],
                 status=SearchOriginStatus.PENDING,
+            )
+        )
+
+    for position, preference in enumerate(normalized["preferences"]):
+        db.session.add(
+            SearchPreference(
+                search_id=search.id,
+                label=preference["label"],
+                source=preference["source"],
+                position=position,
             )
         )
 
@@ -359,3 +373,44 @@ def normalize_fit_score(value: Any) -> int:
         score = 0
     score = round(score)
     return max(0, min(100, int(score)))
+
+
+def normalize_preferences(value: Any) -> list[dict[str, str]]:
+    if value in (None, ""):
+        return []
+
+    items = []
+    if isinstance(value, str):
+        tokens = [token.strip() for token in value.split(",") if token.strip()]
+        value = [{"label": token, "source": "USER"} for token in tokens]
+
+    for item in value:
+        if isinstance(item, str):
+            label = item.strip()
+            source = "USER"
+        elif isinstance(item, dict):
+            label = str(item.get("label") or "").strip()
+            source = str(item.get("source") or "USER").strip().upper()
+        else:
+            raise ValidationError("Preferences must be strings or objects with label/source.")
+
+        if not label:
+            continue
+        items.append({"label": label[:80], "source": source[:20] or "USER"})
+
+    deduped = []
+    seen = set()
+    for item in items:
+        key = item["label"].lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+    return deduped
+
+
+def normalize_preference_summary(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    text = str(value).strip()
+    return text[:500] if text else None
