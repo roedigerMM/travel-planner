@@ -16,9 +16,11 @@ from .services.ai_clients import AnthropicEnricher, OpenAINormalizer
 from .services.amadeus_client import AmadeusClient
 
 
-def create_app() -> Flask:
+def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(Config)
+    if test_config:
+        app.config.update(test_config)
 
     db.init_app(app)
     register_sqlite_fk_pragma()

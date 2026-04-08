@@ -62,11 +62,12 @@ class DummyOpenAI:
 @pytest.fixture
 def app(tmp_path):
     db_path = tmp_path / "test.sqlite"
-    app = create_app()
-    app.config.update(
-        TESTING=True,
-        SQLALCHEMY_DATABASE_URI=f"sqlite:///{db_path}",
-        TRAVEL_DATA_MODE="live",
+    app = create_app(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
+            "TRAVEL_DATA_MODE": "live",
+        }
     )
     app.amadeus = DummyAmadeus()
     app.anthropic_enricher = DummyAnthropic()
