@@ -55,7 +55,21 @@ class DummyOpenAI:
             "max_price": 300,
             "currency_code": "EUR",
             "non_stop": True,
-            "trip_type": "CITY_TRIP",
+            "preferences": [
+                {"label": "walkable city", "source": "AI"},
+                {"label": "good food", "source": "AI"},
+            ],
+            "preference_summary": "Looking for a lively city break with food and atmosphere.",
+        }
+
+    def generate_preferences(self, messages):
+        return {
+            "assistant_message": "That sounds like a lively, food-focused city trip.",
+            "preferences": [
+                {"label": "walkable city", "source": "AI"},
+                {"label": "good food", "source": "AI"},
+            ],
+            "preference_summary": "Looking for a lively city break with food and atmosphere.",
         }
 
 

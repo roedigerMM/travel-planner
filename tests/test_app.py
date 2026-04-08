@@ -55,6 +55,33 @@ def test_api_create_search_handles_origin_failure(client, app):
     assert payload["origins"][0]["status"] == "ERROR"
 
 
+def test_api_create_search_normalizes_free_text_to_preferences(client, app):
+    app.amadeus.destinations_by_origin = {
+        "BER": [
+            {
+                "destination_iata": "LIS",
+                "price": "210.00",
+                "currency_code": "EUR",
+                "departure_date": "2026-07-01",
+                "raw_json": {},
+            }
+        ]
+    }
+
+    response = client.post(
+        "/api/searches",
+        json={
+            "origins": [{"iata": "BER", "sub_type": "AIRPORT"}],
+            "free_text": "I want a lively walkable city with great food.",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["search"]["preference_summary"] == "Looking for a lively city break with food and atmosphere."
+    assert [item["label"] for item in payload["search"]["preferences"]] == ["walkable city", "good food"]
+
+
 def test_api_enrich_updates_candidates(client, app):
     app.amadeus.destinations_by_origin = {
         "BER": [
@@ -192,6 +219,15 @@ def test_api_enrich_passes_destination_context_to_anthropic(client, app):
     assert call["destination_context"]["origin_count"] == 2
     assert call["destination_context"]["min_price"] == 210.0
     assert call["destination_context"]["max_price_seen"] == 240.0
+
+
+def test_api_preferences_chat_rejects_empty_messages(client):
+    response = client.post("/api/preferences/chat", json={"messages": []})
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload["error"] == "validation_error"
+    assert "No chat input was provided" in payload["message"]
 
 
 def test_homepage_renders_recent_searches(client, app):

@@ -33,7 +33,8 @@ class OpenAINormalizer:
                     "content": (
                         "You normalize travel search requests into JSON with keys "
                         "origins, travel_month, duration_days, max_price, currency_code, "
-                        "non_stop, and trip_type."
+                        "non_stop, preferences, and preference_summary. "
+                        "preferences must be an array of short objects with label and source."
                     ),
                 },
                 {"role": "user", "content": free_text},
@@ -60,7 +61,7 @@ class OpenAINormalizer:
             conversation.append({"role": role, "content": content.strip()})
 
         if not conversation:
-            raise AIProviderError("No chat input was provided for preference generation.")
+            raise ValueError("No chat input was provided for preference generation.")
 
         url = f"{self.api_base}/chat/completions"
         headers = {

@@ -23,12 +23,14 @@ def health():
 def api_preferences_chat():
     data = request.get_json(silent=True) or {}
     messages = data.get("messages") or []
+    if not any((item.get("content") or "").strip() for item in messages if isinstance(item, dict)):
+        return jsonify({"error": "validation_error", "message": "No chat input was provided for preference generation."}), 400
     try:
         result = current_app.openai_normalizer.generate_preferences(messages)
         normalized = normalize_preference_chat_response(result)
     except AIProviderError as exc:
         return jsonify({"error": "preference_chat_unavailable", "message": str(exc)}), 503
-    except ValidationError as exc:
+    except (ValidationError, ValueError) as exc:
         return jsonify({"error": "validation_error", "message": str(exc)}), 400
 
     return jsonify(normalized)

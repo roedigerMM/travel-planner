@@ -65,8 +65,10 @@ def normalize_preference_chat_response(payload: dict[str, Any]) -> dict[str, Any
 def get_recent_searches(limit: int = 5) -> list[Search]:
     try:
         return Search.query.order_by(Search.created_at.desc()).limit(limit).all()
-    except OperationalError:
-        return []
+    except OperationalError as exc:
+        if "no such table" in str(exc).lower():
+            return []
+        raise
 
 
 def create_search_with_origins(normalized: dict[str, Any]) -> Search:
