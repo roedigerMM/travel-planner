@@ -103,7 +103,8 @@ class AnthropicEnricher:
     def enrich_destination(
         self,
         destination_iata: str,
-        trip_type: str,
+        preferences: list[str],
+        preference_summary: str | None,
         travel_month: str | None,
         duration_days: int | None,
         max_price: float | None,
@@ -134,7 +135,8 @@ class AnthropicEnricher:
                         + json.dumps(
                             {
                                 "destination_iata": destination_iata,
-                                "trip_type": trip_type,
+                                "preferences": preferences,
+                                "preference_summary": preference_summary,
                                 "travel_month": travel_month,
                                 "duration_days": duration_days,
                                 "max_price": max_price,

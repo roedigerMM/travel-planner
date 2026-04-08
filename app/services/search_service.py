@@ -250,11 +250,19 @@ def build_results_payload(search: Search) -> dict[str, Any]:
 
 
 def enrich_candidates(search: Search) -> dict[str, Any]:
-    if not search.trip_type:
+    preference_context = get_preference_context(search)
+    if not preference_context["preferences"] and not preference_context["preference_summary"]:
         return {
             "updated": False,
-            "message": "Trip type is required before AI enrichment can run.",
+            "message": "Preferences are required before AI enrichment can run.",
             "candidates": aggregate_candidates(search.candidates),
+        }
+
+    if not search.candidates:
+        return {
+            "updated": False,
+            "message": "Add candidates first before trying AI enrichment.",
+            "candidates": [],
         }
 
     by_destination: dict[str, list[DestinationCandidate]] = defaultdict(list)
@@ -264,7 +272,8 @@ def enrich_candidates(search: Search) -> dict[str, Any]:
     for destination_iata, grouped_candidates in by_destination.items():
         enrichment = current_app.anthropic_enricher.enrich_destination(
             destination_iata=destination_iata,
-            trip_type=search.trip_type.value,
+            preferences=preference_context["preferences"],
+            preference_summary=preference_context["preference_summary"],
             travel_month=search.travel_month,
             duration_days=search.duration_days,
             max_price=float(search.max_price) if search.max_price is not None else None,
@@ -281,6 +290,19 @@ def enrich_candidates(search: Search) -> dict[str, Any]:
         "updated": True,
         "message": "AI enrichment completed.",
         "candidates": aggregate_candidates(search.candidates),
+    }
+
+
+def get_preference_context(search: Search) -> dict[str, Any]:
+    preferences = [preference.label for preference in search.preferences if preference.label]
+    summary = (search.preference_summary or "").strip() or None
+
+    if not preferences and search.trip_type:
+        preferences = [search.trip_type.value.replace("_", " ").lower()]
+
+    return {
+        "preferences": preferences,
+        "preference_summary": summary,
     }
 
 

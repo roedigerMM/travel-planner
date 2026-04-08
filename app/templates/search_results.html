@@ -26,12 +26,10 @@
   <p class="notice" data-enrich-status>
     {% if not search.preferences and not search.preference_summary and not search.trip_type %}
       Add preferences first to prepare this search for AI enrichment.
-    {% elif not search.trip_type %}
-      Preference-based enrichment is the next migration step. This search already saved your preferences, but AI fit scoring still uses the legacy trip type behind the scenes for now.
     {% elif not candidates %}
       Add candidates first before trying AI enrichment.
     {% else %}
-      AI enrichment updates the candidate list below without a full page reload.
+      AI enrichment now uses your saved preferences and updates the candidate list below without a full page reload.
     {% endif %}
   </p>
 
