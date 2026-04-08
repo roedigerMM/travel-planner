@@ -147,6 +147,53 @@ def test_api_enrich_requires_preferences(client, app):
     assert "Preferences are required" in payload["message"]
 
 
+def test_api_enrich_passes_destination_context_to_anthropic(client, app):
+    app.amadeus.destinations_by_origin = {
+        "BER": [
+            {
+                "destination_iata": "LIS",
+                "price": "210.00",
+                "currency_code": "EUR",
+                "departure_date": "2026-07-01",
+                "raw_json": {"source": "demo", "origin": "BER", "destination": "LIS"},
+            }
+        ],
+        "MUC": [
+            {
+                "destination_iata": "LIS",
+                "price": "240.00",
+                "currency_code": "EUR",
+                "departure_date": "2026-07-03",
+                "raw_json": {"source": "demo", "origin": "MUC", "destination": "LIS"},
+            }
+        ],
+    }
+    create_response = client.post(
+        "/api/searches",
+        json={
+            "origins": [
+                {"iata": "BER", "sub_type": "AIRPORT"},
+                {"iata": "MUC", "sub_type": "AIRPORT"},
+            ],
+            "preferences": ["walkable city", "good food"],
+            "preference_summary": "Looking for a sunny city break with atmosphere.",
+        },
+    )
+    search_id = create_response.get_json()["id"]
+
+    response = client.post(f"/api/searches/{search_id}/enrich")
+
+    assert response.status_code == 200
+    assert len(app.anthropic_enricher.calls) == 1
+    call = app.anthropic_enricher.calls[0]
+    assert call["preferences"] == ["walkable city", "good food"]
+    assert call["preference_summary"] == "Looking for a sunny city break with atmosphere."
+    assert call["destination_context"]["origin_iatas"] == ["BER", "MUC"]
+    assert call["destination_context"]["origin_count"] == 2
+    assert call["destination_context"]["min_price"] == 210.0
+    assert call["destination_context"]["max_price_seen"] == 240.0
+
+
 def test_homepage_renders_recent_searches(client, app):
     with app.app_context():
         db.session.add(Search(status="COMPLETED"))

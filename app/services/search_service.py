@@ -278,6 +278,7 @@ def enrich_candidates(search: Search) -> dict[str, Any]:
             duration_days=search.duration_days,
             max_price=float(search.max_price) if search.max_price is not None else None,
             currency_code=search.currency_code,
+            destination_context=build_destination_context(grouped_candidates),
         )
         score = normalize_fit_score(enrichment.get("fit_score"))
         rationale = (enrichment.get("rationale") or "").strip() or None
@@ -303,6 +304,46 @@ def get_preference_context(search: Search) -> dict[str, Any]:
     return {
         "preferences": preferences,
         "preference_summary": summary,
+    }
+
+
+def build_destination_context(candidates: list[DestinationCandidate]) -> dict[str, Any]:
+    origin_iatas = sorted({candidate.origin_iata for candidate in candidates if candidate.origin_iata})
+    departure_dates = sorted({candidate.departure_date for candidate in candidates if candidate.departure_date})
+
+    prices = [float(candidate.price) for candidate in candidates if candidate.price is not None]
+    min_price = min(prices) if prices else None
+    max_seen_price = max(prices) if prices else None
+    currency_code = next((candidate.currency_code for candidate in candidates if candidate.currency_code), None)
+
+    raw_hints = []
+    seen_hints = set()
+    for candidate in candidates:
+        try:
+            raw_payload = json.loads(candidate.raw_json) if candidate.raw_json else {}
+        except json.JSONDecodeError:
+            raw_payload = {}
+
+        hint = {
+            "source": raw_payload.get("source"),
+            "destination": raw_payload.get("destination") or raw_payload.get("destination_iata"),
+            "origin": raw_payload.get("origin"),
+        }
+        compact_hint = tuple((key, hint.get(key)) for key in ("source", "destination", "origin"))
+        if compact_hint in seen_hints:
+            continue
+        seen_hints.add(compact_hint)
+        if any(value for value in hint.values()):
+            raw_hints.append(hint)
+
+    return {
+        "origin_iatas": origin_iatas,
+        "origin_count": len(origin_iatas),
+        "departure_dates": departure_dates,
+        "min_price": min_price,
+        "max_price_seen": max_seen_price,
+        "currency_code": currency_code,
+        "raw_hints": raw_hints,
     }
 
 

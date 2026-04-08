@@ -109,6 +109,7 @@ class AnthropicEnricher:
         duration_days: int | None,
         max_price: float | None,
         currency_code: str | None,
+        destination_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if not self.api_key:
             raise AIProviderError("Anthropic API key is not configured.")
@@ -129,7 +130,10 @@ class AnthropicEnricher:
                     "content": (
                         "Return only JSON with keys fit_score and rationale. "
                         "fit_score must be an integer from 0 to 100. "
-                        "rationale must be a single short sentence. "
+                        "Use the full score range when appropriate instead of clustering around similar values. "
+                        "rationale must be a single short sentence that clearly refers to this specific destination. "
+                        "Avoid generic wording that would fit every destination equally well. "
+                        "Use the destination context such as price, origins, departure dates, and source when it helps distinguish the match. "
                         "Do not wrap the JSON in markdown fences. "
                         "Evaluate this destination match: "
                         + json.dumps(
@@ -141,6 +145,7 @@ class AnthropicEnricher:
                                 "duration_days": duration_days,
                                 "max_price": max_price,
                                 "currency_code": currency_code,
+                                "destination_context": destination_context or {},
                             }
                         )
                     ),

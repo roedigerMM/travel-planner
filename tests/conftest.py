@@ -33,8 +33,10 @@ class DummyAmadeus:
 class DummyAnthropic:
     def __init__(self):
         self.responses = {}
+        self.calls = []
 
     def enrich_destination(self, destination_iata, **kwargs):
+        self.calls.append({"destination_iata": destination_iata, **kwargs})
         value = self.responses.get(
             destination_iata,
             {"fit_score": 76, "rationale": f"{destination_iata} is a good fit."},
