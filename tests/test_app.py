@@ -1,5 +1,9 @@
+from unittest.mock import Mock, patch
+
+from app import create_app
 from app.extensions import db
 from app.models import DestinationCandidate, Search
+from app.services.rapidapi_skyscanner_client import RapidApiSkyscannerClient
 
 
 def test_api_create_search_persists_origin_status_and_candidates(client, app):
@@ -296,6 +300,82 @@ def test_api_locations_suggest_uses_demo_fallback_in_demo_mode(app):
     payload = response.get_json()
     assert payload
     assert any(item["iata"] == "BER" for item in payload)
+
+
+def test_create_app_supports_rapidapi_skyscanner_provider(tmp_path):
+    db_path = tmp_path / "test-rapidapi.sqlite"
+    app = create_app(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
+            "TRAVEL_DATA_PROVIDER": "rapidapi_skyscanner",
+            "RAPIDAPI_KEY": "test-key",
+            "RAPIDAPI_SKYSCANNER_HOST": "skyscanner-flights-travel-api.p.rapidapi.com",
+            "RAPIDAPI_MARKET": "DE",
+            "RAPIDAPI_LOCALE": "de-DE",
+        }
+    )
+
+    assert isinstance(app.travel_data, RapidApiSkyscannerClient)
+
+
+def test_rapidapi_skyscanner_search_locations_normalizes_places():
+    client = RapidApiSkyscannerClient(
+        api_key="test-key",
+        host="skyscanner-flights-travel-api.p.rapidapi.com",
+        market="DE",
+        locale="de-DE",
+    )
+    response = Mock()
+    response.json.return_value = {
+        "places": [
+            {
+                "skyId": "LOND",
+                "entityId": "27544008",
+                "iataCode": "LON",
+                "name": "London",
+                "cityName": "London",
+                "countryName": "United Kingdom",
+                "placeType": "CITY",
+            },
+            {
+                "skyId": "LHR",
+                "entityId": "95565050",
+                "iataCode": "",
+                "name": "London Heathrow",
+                "cityName": "London",
+                "countryName": "United Kingdom",
+                "placeType": "AIRPORT",
+            },
+        ]
+    }
+    response.raise_for_status.return_value = None
+
+    with patch("app.services.rapidapi_skyscanner_client.requests.get", return_value=response):
+        items = client.search_locations("London", subtypes=["CITY", "AIRPORT"], limit=5)
+
+    assert items == [
+        {
+            "sub_type": "CITY",
+            "name": "London",
+            "iata": "LON",
+            "city_name": "London",
+            "city_code": "LON",
+            "country_code": None,
+            "provider_sky_id": "LOND",
+            "provider_entity_id": "27544008",
+        },
+        {
+            "sub_type": "AIRPORT",
+            "name": "London Heathrow",
+            "iata": "LHR",
+            "city_name": "London",
+            "city_code": None,
+            "country_code": None,
+            "provider_sky_id": "LHR",
+            "provider_entity_id": "95565050",
+        },
+    ]
 
 
 def test_ui_create_search_persists_origin_provider_metadata(client, app):
