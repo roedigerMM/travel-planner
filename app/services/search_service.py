@@ -90,6 +90,8 @@ def create_search_with_origins(normalized: dict[str, Any]) -> Search:
             SearchOrigin(
                 search_id=search.id,
                 iata_code=origin["iata_code"],
+                provider_sky_id=origin.get("provider_sky_id"),
+                provider_entity_id=origin.get("provider_entity_id"),
                 sub_type=origin["sub_type"],
                 status=SearchOriginStatus.PENDING,
             )
@@ -137,16 +139,20 @@ def create_and_execute_search(normalized: dict[str, Any]) -> Search:
 
         seen_destinations = set()
         for offer in offers:
-            destination_iata = offer["destination_iata"]
-            if destination_iata in seen_destinations:
+            destination_code = (offer.get("destination_code") or offer.get("destination_iata") or "").strip().upper()
+            if not destination_code or destination_code in seen_destinations:
                 continue
-            seen_destinations.add(destination_iata)
+            seen_destinations.add(destination_code)
 
             db.session.add(
                 DestinationCandidate(
                     search_id=search.id,
                     origin_iata=origin.iata_code,
-                    destination_iata=destination_iata,
+                    destination_code=destination_code,
+                    destination_iata=(offer.get("destination_iata") or "").strip().upper() or None,
+                    destination_entity_id=(offer.get("destination_entity_id") or "").strip() or None,
+                    destination_name=(offer.get("destination_name") or "").strip() or destination_code,
+                    destination_type=(offer.get("destination_type") or "").strip().upper() or None,
                     price=offer.get("price"),
                     currency_code=offer.get("currency_code"),
                     departure_date=offer.get("departure_date"),
@@ -197,10 +203,14 @@ def fetch_destination_offers(origin_iata: str, search: Search) -> tuple[list[dic
 def aggregate_candidates(candidates: list[DestinationCandidate]) -> list[dict[str, Any]]:
     merged: dict[str, dict[str, Any]] = {}
     for candidate in candidates:
-        destination = candidate.destination_iata
+        destination = candidate.destination_code or candidate.destination_iata or ""
         if destination not in merged:
             merged[destination] = {
-                "destination_iata": destination,
+                "destination_code": destination,
+                "destination_iata": candidate.destination_iata or destination,
+                "destination_name": candidate.destination_name or candidate.destination_iata or destination,
+                "destination_type": candidate.destination_type,
+                "destination_entity_id": candidate.destination_entity_id,
                 "price": float(candidate.price) if candidate.price is not None else None,
                 "currency_code": candidate.currency_code,
                 "departure_date": candidate.departure_date,
@@ -222,6 +232,17 @@ def aggregate_candidates(candidates: list[DestinationCandidate]) -> list[dict[st
             item["currency_code"] = candidate.currency_code
             item["departure_date"] = candidate.departure_date
 
+        if candidate.destination_name and not item["destination_name"]:
+            item["destination_name"] = candidate.destination_name
+        if candidate.destination_type and not item["destination_type"]:
+            item["destination_type"] = candidate.destination_type
+        if candidate.destination_entity_id and not item["destination_entity_id"]:
+            item["destination_entity_id"] = candidate.destination_entity_id
+        if candidate.destination_iata and (
+            not item["destination_iata"] or item["destination_iata"] == item["destination_code"]
+        ):
+            item["destination_iata"] = candidate.destination_iata
+
         if candidate.ai_fit_score is not None:
             item["ai_fit_score"] = candidate.ai_fit_score
             item["ai_rationale"] = candidate.ai_rationale
@@ -238,7 +259,7 @@ def aggregate_candidates(candidates: list[DestinationCandidate]) -> list[dict[st
         key=lambda item: (
             item["price"] is None,
             item["price"] if item["price"] is not None else 0,
-            item["destination_iata"],
+            item["destination_name"] or item["destination_code"],
         ),
     )
 
@@ -269,11 +290,20 @@ def enrich_candidates(search: Search) -> dict[str, Any]:
 
     by_destination: dict[str, list[DestinationCandidate]] = defaultdict(list)
     for candidate in search.candidates:
-        by_destination[candidate.destination_iata].append(candidate)
+        by_destination[candidate.destination_code or candidate.destination_iata].append(candidate)
 
-    for destination_iata, grouped_candidates in by_destination.items():
+    for destination_code, grouped_candidates in by_destination.items():
+        destination_label = next(
+            (
+                candidate.destination_iata
+                or candidate.destination_code
+                or candidate.destination_name
+                or destination_code
+            )
+            for candidate in grouped_candidates
+        )
         enrichment = current_app.anthropic_enricher.enrich_destination(
-            destination_iata=destination_iata,
+            destination_iata=destination_label,
             preferences=preference_context["preferences"],
             preference_summary=preference_context["preference_summary"],
             travel_month=search.travel_month,
@@ -328,7 +358,12 @@ def build_destination_context(candidates: list[DestinationCandidate]) -> dict[st
 
         hint = {
             "source": raw_payload.get("source"),
-            "destination": raw_payload.get("destination") or raw_payload.get("destination_iata"),
+            "destination": (
+                raw_payload.get("destination")
+                or raw_payload.get("destination_iata")
+                or candidate.destination_name
+                or candidate.destination_code
+            ),
             "origin": raw_payload.get("origin"),
         }
         compact_hint = tuple((key, hint.get(key)) for key in ("source", "destination", "origin"))
@@ -369,7 +404,14 @@ def normalize_origins(origins: Any) -> list[dict[str, Any]]:
             sub_type = OriginSubType(sub_type_raw)
         except ValueError as exc:
             raise ValidationError(f"Invalid origin sub-type: {sub_type_raw}.") from exc
-        normalized.append({"iata_code": iata, "sub_type": sub_type})
+        normalized.append(
+            {
+                "iata_code": iata,
+                "provider_sky_id": (raw_origin.get("provider_sky_id") or "").strip() or None,
+                "provider_entity_id": (raw_origin.get("provider_entity_id") or "").strip() or None,
+                "sub_type": sub_type,
+            }
+        )
     return normalized
 
 

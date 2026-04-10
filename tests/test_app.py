@@ -6,14 +6,20 @@ def test_api_create_search_persists_origin_status_and_candidates(client, app):
     app.travel_data.destinations_by_origin = {
         "BER": [
             {
+                "destination_code": "LIS",
                 "destination_iata": "LIS",
+                "destination_name": "Lisbon",
+                "destination_type": "CITY",
                 "price": "210.00",
                 "currency_code": "EUR",
                 "departure_date": "2026-07-01",
                 "raw_json": {},
             },
             {
+                "destination_code": "ATH",
                 "destination_iata": "ATH",
+                "destination_name": "Athens",
+                "destination_type": "CITY",
                 "price": "180.00",
                 "currency_code": "EUR",
                 "departure_date": "2026-07-02",
@@ -36,6 +42,7 @@ def test_api_create_search_persists_origin_status_and_candidates(client, app):
     assert payload["search"]["status"] == "COMPLETED"
     assert payload["origins"][0]["status"] == "SUCCESS"
     assert len(payload["candidates"]) == 2
+    assert payload["candidates"][0]["destination_name"] in {"Lisbon", "Athens"}
 
 
 def test_api_create_search_handles_origin_failure(client, app):
@@ -59,7 +66,10 @@ def test_api_create_search_normalizes_free_text_to_preferences(client, app):
     app.travel_data.destinations_by_origin = {
         "BER": [
             {
+                "destination_code": "LIS",
                 "destination_iata": "LIS",
+                "destination_name": "Lisbon",
+                "destination_type": "CITY",
                 "price": "210.00",
                 "currency_code": "EUR",
                 "departure_date": "2026-07-01",
@@ -86,7 +96,10 @@ def test_api_enrich_updates_candidates(client, app):
     app.travel_data.destinations_by_origin = {
         "BER": [
             {
+                "destination_code": "LIS",
                 "destination_iata": "LIS",
+                "destination_name": "Lisbon",
+                "destination_type": "CITY",
                 "price": "210.00",
                 "currency_code": "EUR",
                 "departure_date": "2026-07-01",
@@ -120,7 +133,10 @@ def test_api_enrich_rounds_non_integer_scores(client, app):
     app.travel_data.destinations_by_origin = {
         "BER": [
             {
+                "destination_code": "LIS",
                 "destination_iata": "LIS",
+                "destination_name": "Lisbon",
+                "destination_type": "CITY",
                 "price": "210.00",
                 "currency_code": "EUR",
                 "departure_date": "2026-07-01",
@@ -152,7 +168,10 @@ def test_api_enrich_requires_preferences(client, app):
     app.travel_data.destinations_by_origin = {
         "BER": [
             {
+                "destination_code": "LIS",
                 "destination_iata": "LIS",
+                "destination_name": "Lisbon",
+                "destination_type": "CITY",
                 "price": "210.00",
                 "currency_code": "EUR",
                 "departure_date": "2026-07-01",
@@ -178,7 +197,10 @@ def test_api_enrich_passes_destination_context_to_anthropic(client, app):
     app.travel_data.destinations_by_origin = {
         "BER": [
             {
+                "destination_code": "LIS",
                 "destination_iata": "LIS",
+                "destination_name": "Lisbon",
+                "destination_type": "CITY",
                 "price": "210.00",
                 "currency_code": "EUR",
                 "departure_date": "2026-07-01",
@@ -187,7 +209,10 @@ def test_api_enrich_passes_destination_context_to_anthropic(client, app):
         ],
         "MUC": [
             {
+                "destination_code": "LIS",
                 "destination_iata": "LIS",
+                "destination_name": "Lisbon",
+                "destination_type": "CITY",
                 "price": "240.00",
                 "currency_code": "EUR",
                 "departure_date": "2026-07-03",
@@ -219,6 +244,37 @@ def test_api_enrich_passes_destination_context_to_anthropic(client, app):
     assert call["destination_context"]["origin_count"] == 2
     assert call["destination_context"]["min_price"] == 210.0
     assert call["destination_context"]["max_price_seen"] == 240.0
+
+
+def test_api_create_search_supports_provider_destination_codes_without_iata(client, app):
+    app.travel_data.destinations_by_origin = {
+        "BER": [
+            {
+                "destination_code": "LISB",
+                "destination_name": "Lisbon",
+                "destination_type": "CITY",
+                "destination_entity_id": "27543833",
+                "price": "210.00",
+                "currency_code": "EUR",
+                "departure_date": "2026-07-01",
+                "raw_json": {"provider": "rapidapi"},
+            }
+        ]
+    }
+
+    response = client.post(
+        "/api/searches",
+        json={
+            "origins": [{"iata": "BER", "sub_type": "AIRPORT"}],
+            "preferences": ["walkable city"],
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["candidates"][0]["destination_code"] == "LISB"
+    assert payload["candidates"][0]["destination_name"] == "Lisbon"
+    assert payload["candidates"][0]["destination_iata"] == "LISB"
 
 
 def test_api_preferences_chat_rejects_empty_messages(client):

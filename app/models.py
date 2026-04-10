@@ -131,6 +131,8 @@ class SearchOrigin(db.Model):
     )
 
     iata_code = db.Column(db.String(3), nullable=False)
+    provider_sky_id = db.Column(db.String(20), nullable=True)
+    provider_entity_id = db.Column(db.String(40), nullable=True)
 
     sub_type = db.Column(
         db.Enum(OriginSubType, name="origin_sub_type", create_constraint=True),
@@ -150,6 +152,8 @@ class SearchOrigin(db.Model):
             "id": self.id,
             "search_id": self.search_id,
             "iata_code": self.iata_code,
+            "provider_sky_id": self.provider_sky_id,
+            "provider_entity_id": self.provider_entity_id,
             "sub_type": self.sub_type.value,
             "status": self.status.value if self.status else None,
             "error_message": self.error_message,
@@ -169,7 +173,11 @@ class DestinationCandidate(db.Model):
     )
 
     origin_iata = db.Column(db.String(3), nullable=False)
-    destination_iata = db.Column(db.String(3), nullable=False)
+    destination_code = db.Column(db.String(20), nullable=False)
+    destination_iata = db.Column(db.String(3), nullable=True)
+    destination_entity_id = db.Column(db.String(40), nullable=True)
+    destination_name = db.Column(db.String(120), nullable=True)
+    destination_type = db.Column(db.String(20), nullable=True)
 
     price = db.Column(db.Numeric(10, 2), nullable=True)
     currency_code = db.Column(db.String(3), nullable=True)
@@ -185,8 +193,8 @@ class DestinationCandidate(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint(
-            "search_id", "origin_iata", "destination_iata",
-            name="uq_candidate_search_origin_dest",
+            "search_id", "origin_iata", "destination_code",
+            name="uq_candidate_search_origin_dest_code",
         ),
     )
 
@@ -195,7 +203,11 @@ class DestinationCandidate(db.Model):
             "id": self.id,
             "search_id": self.search_id,
             "origin_iata": self.origin_iata,
+            "destination_code": self.destination_code,
             "destination_iata": self.destination_iata,
+            "destination_entity_id": self.destination_entity_id,
+            "destination_name": self.destination_name,
+            "destination_type": self.destination_type,
             "price": float(self.price) if self.price is not None else None,
             "currency_code": self.currency_code,
             "departure_date": self.departure_date,

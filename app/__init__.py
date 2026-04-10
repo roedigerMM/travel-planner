@@ -129,7 +129,10 @@ def register_cli(app: Flask) -> None:
                 DestinationCandidate(
                     search_id=search.id,
                     origin_iata="BER",
+                    destination_code="LIS",
                     destination_iata="LIS",
+                    destination_name="Lisbon",
+                    destination_type="CITY",
                     price=189.00,
                     currency_code="EUR",
                     departure_date="2026-07-01",
@@ -140,7 +143,10 @@ def register_cli(app: Flask) -> None:
                 DestinationCandidate(
                     search_id=search.id,
                     origin_iata="MUC",
+                    destination_code="LIS",
                     destination_iata="LIS",
+                    destination_name="Lisbon",
+                    destination_type="CITY",
                     price=219.00,
                     currency_code="EUR",
                     departure_date="2026-07-02",
@@ -149,7 +155,10 @@ def register_cli(app: Flask) -> None:
                 DestinationCandidate(
                     search_id=search.id,
                     origin_iata="BER",
+                    destination_code="BCN",
                     destination_iata="BCN",
+                    destination_name="Barcelona",
+                    destination_type="CITY",
                     price=155.00,
                     currency_code="EUR",
                     departure_date="2026-07-05",
