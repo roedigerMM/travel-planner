@@ -56,7 +56,14 @@ function renderCandidates(container, candidates) {
 
   const cards = candidates.map((candidate) => `
     <li class="candidate-card">
-      <strong>${candidate.destination_iata}</strong>
+      <strong>${candidate.destination_name || candidate.destination_iata || candidate.destination_code}</strong>
+      ${
+        candidate.destination_code && candidate.destination_code !== (candidate.destination_name || "")
+          ? `<p><small>Code: ${candidate.destination_code}${candidate.destination_type ? ` · ${candidate.destination_type}` : ""}</small></p>`
+          : candidate.destination_type
+            ? `<p><small>${candidate.destination_type}</small></p>`
+            : ""
+      }
       ${candidate.price !== null ? `<span> — ${candidate.price.toFixed(2)} ${candidate.currency_code || ""}</span>` : ""}
       ${candidate.source === "demo" ? "<p><em>Demo data fallback</em></p>" : ""}
       <p>Origins: ${candidate.origin_iatas.join(", ")}</p>

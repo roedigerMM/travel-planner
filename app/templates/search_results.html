@@ -90,7 +90,12 @@
         <ul class="candidate-list">
           {% for c in candidates %}
             <li class="candidate-card">
-              <strong>{{ c.destination_iata }}</strong>
+              <strong>{{ c.destination_name or c.destination_iata or c.destination_code }}</strong>
+              {% if c.destination_code and c.destination_code != (c.destination_name or '') %}
+                <p><small>Code: {{ c.destination_code }}{% if c.destination_type %} · {{ c.destination_type }}{% endif %}</small></p>
+              {% elif c.destination_type %}
+                <p><small>{{ c.destination_type }}</small></p>
+              {% endif %}
               {% if c.price %}<span> — {{ c.price }} {{ c.currency_code or "" }}</span>{% endif %}
               {% if c.source == "demo" %}<p><em>Demo data fallback</em></p>{% endif %}
               <p>Origins: {{ c.origin_iatas|join(", ") }}</p>
