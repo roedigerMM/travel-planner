@@ -16,10 +16,26 @@ Server-rendered Flask app for discovering travel destinations across multiple or
 - Backend: Flask with app factory and separate UI / API blueprints
 - Database: SQLite with SQLAlchemy ORM
 - UI: server-rendered Jinja templates with small `fetch()` enhancements
-- Travel data: Amadeus integration plus config-driven demo fallback
+- Travel data:
+  - pluggable provider interface
+  - Amadeus provider
+  - RapidAPI Skyscanner provider spike
+  - config-driven demo fallback
 - AI:
   - OpenAI for preference chat and normalization
   - Anthropic for destination fit scoring and rationale generation
+
+## Travel Provider Status
+
+- `amadeus`
+  - legacy provider
+  - still supported by the app
+- `rapidapi_skyscanner`
+  - current spike provider
+  - location search uses `searchAirport`
+  - destination discovery uses `searchFlightEverywhere`
+  - monthly price resolution uses `getCheapestOneway`
+  - candidates are now primarily city-based, not strictly airport-IATA-based
 
 ## Main User Flow
 
@@ -42,13 +58,34 @@ pip install -r requirements.txt
 
 3. Copy `.env.example` to `.env`
 4. Fill in the provider credentials:
-   - `AMADEUS_CLIENT_ID`
-   - `AMADEUS_CLIENT_SECRET`
+   - for `TRAVEL_DATA_PROVIDER=amadeus`:
+     - `AMADEUS_CLIENT_ID`
+     - `AMADEUS_CLIENT_SECRET`
+   - for `TRAVEL_DATA_PROVIDER=rapidapi_skyscanner`:
+     - `RAPIDAPI_KEY`
+     - optionally adjust:
+       - `RAPIDAPI_SKYSCANNER_HOST`
+       - `RAPIDAPI_MARKET`
+       - `RAPIDAPI_LOCALE`
    - `OPENAI_API_KEY`
    - `ANTHROPIC_API_KEY`
-5. Recommended for demos:
+5. Choose the travel provider:
+   - `TRAVEL_DATA_PROVIDER=amadeus`
+   - or `TRAVEL_DATA_PROVIDER=rapidapi_skyscanner`
+6. Recommended for demos:
    - set `TRAVEL_DATA_MODE=auto`
    - this tries live travel data first and falls back to demo data if needed
+
+Example for the RapidAPI spike:
+
+```bash
+TRAVEL_DATA_PROVIDER=rapidapi_skyscanner
+RAPIDAPI_KEY=...
+RAPIDAPI_SKYSCANNER_HOST=skyscanner-flights-travel-api.p.rapidapi.com
+RAPIDAPI_MARKET=DE
+RAPIDAPI_LOCALE=de-DE
+TRAVEL_DATA_MODE=auto
+```
 
 ## Database
 
@@ -65,6 +102,17 @@ flask --app run.py seed-demo
 ```
 
 The demo seed gives you a predictable walkthrough search for presentations.
+
+Important after pulling schema changes:
+
+- this project does not yet use formal DB migrations
+- if the local schema changes, rebuild your local database:
+
+```bash
+rm -f instance/app.sqlite
+./.venv/bin/flask --app run.py init-db
+./.venv/bin/flask --app run.py seed-demo
+```
 
 ## Running
 
@@ -97,12 +145,27 @@ For a presentation, the strongest flow is:
 
 If the live travel provider is flaky, `TRAVEL_DATA_MODE=auto` keeps the demo stable by using fallback destination data while still preserving the real integration architecture.
 
+## Known Limitations
+
+- The RapidAPI Skyscanner spike is city-oriented:
+  - destination candidates may use provider city codes such as `LISB` or `ROME`
+  - not every candidate maps cleanly to a 3-letter airport IATA code
+- RapidAPI free-plan quotas can interrupt live testing:
+  - when limits are exceeded, `TRAVEL_DATA_MODE=auto` falls back to demo data
+  - if no matching demo suggestions exist, the API can still return `502`
+- `getCheapestOneway` required an extra client-side month filter:
+  - the endpoint may return entries outside the requested month
+  - the app now filters those entries before choosing the cheapest day
+- Some RapidAPI parameters behave inconsistently:
+  - for example, `market=DE` was not always accepted on `getCheapestOneway` during testing
+  - the spike therefore uses the most stable subset of parameters discovered in live testing
+
 ## Tests
 
 Run:
 
 ```bash
-python -m pytest
+./.venv/bin/python -m pytest
 ```
 
 The tests use a separate temporary SQLite database and should no longer affect your normal local app database.
