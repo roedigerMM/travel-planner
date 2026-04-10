@@ -118,7 +118,7 @@ def create_and_execute_search(normalized: dict[str, Any]) -> Search:
 
     for origin in search.origins:
         offers, error_message, used_demo_data = fetch_destination_offers(
-            origin_iata=origin.iata_code,
+            origin=origin,
             search=search,
         )
 
@@ -175,8 +175,9 @@ def create_and_execute_search(normalized: dict[str, Any]) -> Search:
     return search
 
 
-def fetch_destination_offers(origin_iata: str, search: Search) -> tuple[list[dict], str | None, bool]:
+def fetch_destination_offers(origin: SearchOrigin, search: Search) -> tuple[list[dict], str | None, bool]:
     mode = (current_app.config.get("TRAVEL_DATA_MODE") or "auto").lower()
+    origin_iata = origin.iata_code
 
     if mode == "demo":
         return get_demo_destinations(origin_iata), None, True
@@ -189,6 +190,8 @@ def fetch_destination_offers(origin_iata: str, search: Search) -> tuple[list[dic
             max_price=float(search.max_price) if search.max_price is not None else None,
             currency_code=search.currency_code,
             non_stop=search.non_stop,
+            origin_sky_id=origin.provider_sky_id,
+            origin_entity_id=origin.provider_entity_id,
         )
         return offers, None, False
     except Exception as exc:  # noqa: BLE001

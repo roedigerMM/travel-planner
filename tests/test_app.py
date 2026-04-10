@@ -378,6 +378,92 @@ def test_rapidapi_skyscanner_search_locations_normalizes_places():
     ]
 
 
+def test_rapidapi_skyscanner_search_destinations_normalizes_everywhere_results():
+    client = RapidApiSkyscannerClient(
+        api_key="test-key",
+        host="skyscanner-flights-travel-api.p.rapidapi.com",
+        market="DE",
+        locale="de-DE",
+    )
+    response = Mock()
+    response.json.return_value = {
+        "destinations": [
+            {
+                "skyId": "LISB",
+                "entityId": "27543833",
+                "name": "Lisbon",
+                "countryName": "Portugal",
+                "price": 16.99,
+                "currency": "GBP",
+                "isDirect": True,
+                "imageUrl": "",
+            },
+            {
+                "skyId": "ROME",
+                "entityId": "27536545",
+                "name": "Rome",
+                "countryName": "Italy",
+                "price": "13.97",
+                "currency": "GBP",
+                "isDirect": True,
+                "imageUrl": "",
+            },
+        ]
+    }
+    response.raise_for_status.return_value = None
+
+    with patch("app.services.rapidapi_skyscanner_client.requests.get", return_value=response):
+        items = client.search_destinations(
+            origin_iata="LON",
+            origin_sky_id="LOND",
+            origin_entity_id="27544008",
+            currency_code="EUR",
+        )
+
+    assert items == [
+        {
+            "destination_code": "LISB",
+            "destination_iata": None,
+            "destination_entity_id": "27543833",
+            "destination_name": "Lisbon",
+            "destination_type": "CITY",
+            "price": 16.99,
+            "currency_code": "GBP",
+            "departure_date": None,
+            "raw_json": {
+                "skyId": "LISB",
+                "entityId": "27543833",
+                "name": "Lisbon",
+                "countryName": "Portugal",
+                "price": 16.99,
+                "currency": "GBP",
+                "isDirect": True,
+                "imageUrl": "",
+            },
+        },
+        {
+            "destination_code": "ROME",
+            "destination_iata": None,
+            "destination_entity_id": "27536545",
+            "destination_name": "Rome",
+            "destination_type": "CITY",
+            "price": 13.97,
+            "currency_code": "GBP",
+            "departure_date": None,
+            "raw_json": {
+                "skyId": "ROME",
+                "entityId": "27536545",
+                "name": "Rome",
+                "countryName": "Italy",
+                "price": "13.97",
+                "currency": "GBP",
+                "isDirect": True,
+                "imageUrl": "",
+            },
+        },
+    ]
+
+
 def test_ui_create_search_persists_origin_provider_metadata(client, app):
     app.travel_data.destinations_by_origin = {
         "BER": [

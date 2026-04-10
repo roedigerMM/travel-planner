@@ -97,6 +97,8 @@ class AmadeusClient(TravelDataProvider):
         max_price: float | None = None,
         currency_code: str | None = None,
         non_stop: bool | None = None,
+        origin_sky_id: str | None = None,
+        origin_entity_id: str | None = None,
     ) -> list[dict]:
         params = {"origin": origin_iata}
         if travel_month:
