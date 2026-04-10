@@ -30,6 +30,16 @@ class RapidApiSkyscannerClient(TravelDataProvider):
             "Accept": "application/json",
         }
 
+    def _get(self, path: str, *, params: dict) -> dict:
+        resp = requests.get(
+            f"{self.base_url}{path}",
+            headers=self._headers(),
+            params=params,
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     @staticmethod
     def _best_iata(item: dict) -> str | None:
         iata = (item.get("iataCode") or "").strip().upper()
@@ -62,14 +72,7 @@ class RapidApiSkyscannerClient(TravelDataProvider):
             "market": self.market,
             "locale": self.locale,
         }
-        resp = requests.get(
-            f"{self.base_url}/flights/searchAirport",
-            headers=self._headers(),
-            params=params,
-            timeout=self.timeout,
-        )
-        resp.raise_for_status()
-        payload = resp.json()
+        payload = self._get("/flights/searchAirport", params=params)
 
         items = []
         for item in payload.get("places", []):
@@ -95,6 +98,37 @@ class RapidApiSkyscannerClient(TravelDataProvider):
             )
 
         return items[:limit]
+
+    @staticmethod
+    def _extract_cheapest_day(payload: dict, *, travel_month: str | None = None) -> tuple[float | None, str | None, str | None]:
+        cheapest_price = None
+        cheapest_date = None
+        currency = payload.get("currency")
+
+        items = payload.get("cheapest", [])
+        if travel_month:
+            items = [
+                item
+                for item in items
+                if str(item.get("date") or "").startswith(f"{travel_month}-")
+            ]
+        if not currency and items:
+            currency = items[0].get("currency")
+
+        for item in items:
+            raw_price = item.get("price")
+            if raw_price is None:
+                continue
+            try:
+                normalized_price = float(raw_price)
+            except (TypeError, ValueError):
+                continue
+
+            if cheapest_price is None or normalized_price < cheapest_price:
+                cheapest_price = normalized_price
+                cheapest_date = item.get("date")
+
+        return cheapest_price, cheapest_date, currency
 
     def search_destinations(
         self,
@@ -125,14 +159,7 @@ class RapidApiSkyscannerClient(TravelDataProvider):
             params["currency"] = "EUR"
         params["market"] = self.market
 
-        resp = requests.get(
-            f"{self.base_url}/flights/searchFlightEverywhere",
-            headers=self._headers(),
-            params=params,
-            timeout=self.timeout,
-        )
-        resp.raise_for_status()
-        payload = resp.json()
+        payload = self._get("/flights/searchFlightEverywhere", params=params)
 
         destinations = []
         for item in payload.get("destinations", []):
@@ -146,6 +173,36 @@ class RapidApiSkyscannerClient(TravelDataProvider):
             except (TypeError, ValueError):
                 normalized_price = None
 
+            resolved_price = normalized_price
+            resolved_departure_date = None
+            resolved_currency = item.get("currency") or currency_code or "EUR"
+
+            if travel_month:
+                try:
+                    cheapest_payload = self._get(
+                        "/flights/getCheapestOneway",
+                        params={
+                            "originSkyId": params["originSkyId"],
+                            "destinationSkyId": destination_code,
+                            "month": travel_month,
+                            "currency": currency_code or "EUR",
+                        },
+                    )
+                    cheapest_price, cheapest_date, cheapest_currency = self._extract_cheapest_day(
+                        cheapest_payload,
+                        travel_month=travel_month,
+                    )
+                    if cheapest_price is not None:
+                        resolved_price = cheapest_price
+                        resolved_departure_date = cheapest_date
+                    if cheapest_currency:
+                        resolved_currency = cheapest_currency
+                    elif currency_code:
+                        resolved_currency = currency_code
+                except Exception:
+                    # Keep the preview discovery result if monthly lookup is unavailable for a destination.
+                    pass
+
             destination_iata = destination_code if len(destination_code) == 3 and destination_code.isalpha() else None
             destinations.append(
                 {
@@ -154,9 +211,9 @@ class RapidApiSkyscannerClient(TravelDataProvider):
                     "destination_entity_id": (item.get("entityId") or "").strip() or None,
                     "destination_name": (item.get("name") or "").strip() or destination_code,
                     "destination_type": "CITY",
-                    "price": normalized_price,
-                    "currency_code": item.get("currency") or currency_code or "EUR",
-                    "departure_date": None,
+                    "price": resolved_price,
+                    "currency_code": resolved_currency,
+                    "departure_date": resolved_departure_date,
                     "raw_json": item,
                 }
             )

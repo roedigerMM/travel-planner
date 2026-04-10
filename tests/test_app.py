@@ -464,6 +464,149 @@ def test_rapidapi_skyscanner_search_destinations_normalizes_everywhere_results()
     ]
 
 
+def test_rapidapi_skyscanner_search_destinations_resolves_monthly_cheapest_price():
+    client = RapidApiSkyscannerClient(
+        api_key="test-key",
+        host="skyscanner-flights-travel-api.p.rapidapi.com",
+        market="DE",
+        locale="de-DE",
+    )
+    everywhere_response = Mock()
+    everywhere_response.json.return_value = {
+        "destinations": [
+            {
+                "skyId": "LISB",
+                "entityId": "27543833",
+                "name": "Lisbon",
+                "countryName": "Portugal",
+                "price": 16.99,
+                "currency": "GBP",
+                "isDirect": True,
+                "imageUrl": "",
+            }
+        ]
+    }
+    everywhere_response.raise_for_status.return_value = None
+
+    cheapest_response = Mock()
+    cheapest_response.json.return_value = {
+        "cheapest": [
+            {"date": "2026-06-29", "price": 99.0, "currency": "EUR"},
+            {"date": "2026-07-03", "price": 149.0},
+            {"date": "2026-07-01", "price": 129.0},
+            {"date": "2026-08-01", "price": 79.0, "currency": "EUR"},
+        ],
+    }
+    cheapest_response.raise_for_status.return_value = None
+
+    with patch(
+        "app.services.rapidapi_skyscanner_client.requests.get",
+        side_effect=[everywhere_response, cheapest_response],
+    ):
+        items = client.search_destinations(
+            origin_iata="LON",
+            origin_sky_id="LOND",
+            origin_entity_id="27544008",
+            travel_month="2026-07",
+            currency_code="EUR",
+        )
+
+    assert items[0]["price"] == 129.0
+    assert items[0]["departure_date"] == "2026-07-01"
+    assert items[0]["currency_code"] == "EUR"
+
+
+def test_rapidapi_skyscanner_search_destinations_ignores_cheapest_days_outside_requested_month():
+    client = RapidApiSkyscannerClient(
+        api_key="test-key",
+        host="skyscanner-flights-travel-api.p.rapidapi.com",
+        market="DE",
+        locale="de-DE",
+    )
+    everywhere_response = Mock()
+    everywhere_response.json.return_value = {
+        "destinations": [
+            {
+                "skyId": "PARI",
+                "entityId": "27539733",
+                "name": "Paris",
+                "countryName": "France",
+                "price": 49.0,
+                "currency": "EUR",
+                "isDirect": True,
+                "imageUrl": "",
+            }
+        ]
+    }
+    everywhere_response.raise_for_status.return_value = None
+
+    cheapest_response = Mock()
+    cheapest_response.json.return_value = {
+        "cheapest": [
+            {"date": "2026-06-28", "price": 10.0, "currency": "EUR"},
+            {"date": "2026-08-02", "price": 12.0, "currency": "EUR"},
+        ],
+    }
+    cheapest_response.raise_for_status.return_value = None
+
+    with patch(
+        "app.services.rapidapi_skyscanner_client.requests.get",
+        side_effect=[everywhere_response, cheapest_response],
+    ):
+        items = client.search_destinations(
+            origin_iata="BER",
+            origin_sky_id="BER",
+            origin_entity_id="95673383",
+            travel_month="2026-07",
+            currency_code="EUR",
+        )
+
+    assert items[0]["price"] == 49.0
+    assert items[0]["departure_date"] is None
+    assert items[0]["currency_code"] == "EUR"
+
+
+def test_rapidapi_skyscanner_search_destinations_keeps_preview_price_if_month_lookup_fails():
+    client = RapidApiSkyscannerClient(
+        api_key="test-key",
+        host="skyscanner-flights-travel-api.p.rapidapi.com",
+        market="DE",
+        locale="de-DE",
+    )
+    everywhere_response = Mock()
+    everywhere_response.json.return_value = {
+        "destinations": [
+            {
+                "skyId": "ROME",
+                "entityId": "27536545",
+                "name": "Rome",
+                "countryName": "Italy",
+                "price": 13.97,
+                "currency": "GBP",
+                "isDirect": True,
+                "imageUrl": "",
+            }
+        ]
+    }
+    everywhere_response.raise_for_status.return_value = None
+
+    with patch(
+        "app.services.rapidapi_skyscanner_client.requests.get",
+        side_effect=[everywhere_response, RuntimeError("month lookup failed")],
+    ):
+        items = client.search_destinations(
+            origin_iata="LON",
+            origin_sky_id="LOND",
+            origin_entity_id="27544008",
+            travel_month="2026-07",
+            currency_code="EUR",
+        )
+
+    assert items[0]["price"] == 13.97
+    assert items[0]["departure_date"] is None
+    assert items[0]["currency_code"] == "GBP"
+
+
 def test_ui_create_search_persists_origin_provider_metadata(client, app):
     app.travel_data.destinations_by_origin = {
         "BER": [
