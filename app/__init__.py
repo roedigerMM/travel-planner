@@ -25,8 +25,11 @@ def create_app(test_config: dict | None = None) -> Flask:
     db.init_app(app)
     register_sqlite_fk_pragma()
 
-    # Instantiate Amadeus client with config
-    app.amadeus = AmadeusClient(
+    travel_data_provider = (app.config.get("TRAVEL_DATA_PROVIDER") or "amadeus").lower()
+    if travel_data_provider != "amadeus":
+        raise ValueError(f"Unsupported TRAVEL_DATA_PROVIDER: {travel_data_provider}")
+
+    app.travel_data = AmadeusClient(
         base_url=app.config["AMADEUS_BASE_URL"],
         client_id=app.config.get("AMADEUS_CLIENT_ID") or "",
         client_secret=app.config.get("AMADEUS_CLIENT_SECRET") or "",

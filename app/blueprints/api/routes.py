@@ -4,6 +4,7 @@ from . import api_bp
 from ...extensions import db
 from ...models import Search
 from ...services.ai_clients import AIProviderError
+from ...services.demo_travel_data import get_demo_locations
 from ...services.search_service import (
     ValidationError,
     build_results_payload,
@@ -86,15 +87,23 @@ def api_get_candidates(search_id: int):
 def api_locations_suggest():
     keyword = (request.args.get("keyword") or "").strip()
     subtypes_raw = (request.args.get("subTypes") or "AIRPORT,CITY").strip()
+    mode = (current_app.config.get("TRAVEL_DATA_MODE") or "auto").lower()
 
     if not keyword or len(keyword) < 3:
         return jsonify({"error": "keyword_too_short"}), 400
 
     subtypes = [s.strip().upper() for s in subtypes_raw.split(",") if s.strip()]
 
+    if mode == "demo":
+        return jsonify(get_demo_locations(keyword=keyword, subtypes=subtypes, limit=5))
+
     try:
-        items = current_app.amadeus.search_locations(keyword=keyword, subtypes=subtypes, limit=5)
+        items = current_app.travel_data.search_locations(keyword=keyword, subtypes=subtypes, limit=5)
     except Exception as exc:  # noqa: BLE001
+        if mode == "auto":
+            demo_items = get_demo_locations(keyword=keyword, subtypes=subtypes, limit=5)
+            if demo_items:
+                return jsonify(demo_items)
         return jsonify({"error": "suggest_unavailable", "message": str(exc)}), 502
 
     return jsonify(items)

@@ -3,7 +3,7 @@ from app.models import DestinationCandidate, Search
 
 
 def test_api_create_search_persists_origin_status_and_candidates(client, app):
-    app.amadeus.destinations_by_origin = {
+    app.travel_data.destinations_by_origin = {
         "BER": [
             {
                 "destination_iata": "LIS",
@@ -39,7 +39,7 @@ def test_api_create_search_persists_origin_status_and_candidates(client, app):
 
 
 def test_api_create_search_handles_origin_failure(client, app):
-    app.amadeus.destinations_by_origin = {"BER": RuntimeError("boom")}
+    app.travel_data.destinations_by_origin = {"BER": RuntimeError("boom")}
 
     response = client.post(
         "/api/searches",
@@ -56,7 +56,7 @@ def test_api_create_search_handles_origin_failure(client, app):
 
 
 def test_api_create_search_normalizes_free_text_to_preferences(client, app):
-    app.amadeus.destinations_by_origin = {
+    app.travel_data.destinations_by_origin = {
         "BER": [
             {
                 "destination_iata": "LIS",
@@ -83,7 +83,7 @@ def test_api_create_search_normalizes_free_text_to_preferences(client, app):
 
 
 def test_api_enrich_updates_candidates(client, app):
-    app.amadeus.destinations_by_origin = {
+    app.travel_data.destinations_by_origin = {
         "BER": [
             {
                 "destination_iata": "LIS",
@@ -117,7 +117,7 @@ def test_api_enrich_updates_candidates(client, app):
 
 
 def test_api_enrich_rounds_non_integer_scores(client, app):
-    app.amadeus.destinations_by_origin = {
+    app.travel_data.destinations_by_origin = {
         "BER": [
             {
                 "destination_iata": "LIS",
@@ -149,7 +149,7 @@ def test_api_enrich_rounds_non_integer_scores(client, app):
 
 
 def test_api_enrich_requires_preferences(client, app):
-    app.amadeus.destinations_by_origin = {
+    app.travel_data.destinations_by_origin = {
         "BER": [
             {
                 "destination_iata": "LIS",
@@ -175,7 +175,7 @@ def test_api_enrich_requires_preferences(client, app):
 
 
 def test_api_enrich_passes_destination_context_to_anthropic(client, app):
-    app.amadeus.destinations_by_origin = {
+    app.travel_data.destinations_by_origin = {
         "BER": [
             {
                 "destination_iata": "LIS",
@@ -228,6 +228,18 @@ def test_api_preferences_chat_rejects_empty_messages(client):
     payload = response.get_json()
     assert payload["error"] == "validation_error"
     assert "No chat input was provided" in payload["message"]
+
+
+def test_api_locations_suggest_uses_demo_fallback_in_demo_mode(app):
+    app.config["TRAVEL_DATA_MODE"] = "demo"
+    client = app.test_client()
+
+    response = client.get("/api/locations/suggest?keyword=BER&subTypes=AIRPORT,CITY")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload
+    assert any(item["iata"] == "BER" for item in payload)
 
 
 def test_homepage_renders_recent_searches(client, app):

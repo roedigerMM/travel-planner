@@ -176,7 +176,7 @@ def fetch_destination_offers(origin_iata: str, search: Search) -> tuple[list[dic
         return get_demo_destinations(origin_iata), None, True
 
     try:
-        offers = current_app.amadeus.search_destinations(
+        offers = current_app.travel_data.search_destinations(
             origin_iata=origin_iata,
             travel_month=search.travel_month,
             duration_days=search.duration_days,
@@ -186,7 +186,7 @@ def fetch_destination_offers(origin_iata: str, search: Search) -> tuple[list[dic
         )
         return offers, None, False
     except Exception as exc:  # noqa: BLE001
-        error_message = current_app.amadeus.format_error(exc)
+        error_message = current_app.travel_data.format_error(exc)
         if mode == "auto":
             demo_offers = get_demo_destinations(origin_iata)
             if demo_offers:
