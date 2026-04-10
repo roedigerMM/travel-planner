@@ -78,6 +78,8 @@ def view_search(search_id: int):
 def form_origins_from_request():
     iatas = request.form.getlist("origin_iata")
     sub_types = request.form.getlist("origin_sub_type")
+    provider_sky_ids = request.form.getlist("origin_provider_sky_id")
+    provider_entity_ids = request.form.getlist("origin_provider_entity_id")
     selected = []
     for index, iata in enumerate(iatas):
         code = (iata or "").strip()
@@ -87,6 +89,8 @@ def form_origins_from_request():
             {
                 "iata": code,
                 "sub_type": sub_types[index] if index < len(sub_types) else "AIRPORT",
+                "provider_sky_id": provider_sky_ids[index] if index < len(provider_sky_ids) else "",
+                "provider_entity_id": provider_entity_ids[index] if index < len(provider_entity_ids) else "",
             }
         )
     if selected:

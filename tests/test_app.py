@@ -298,6 +298,42 @@ def test_api_locations_suggest_uses_demo_fallback_in_demo_mode(app):
     assert any(item["iata"] == "BER" for item in payload)
 
 
+def test_ui_create_search_persists_origin_provider_metadata(client, app):
+    app.travel_data.destinations_by_origin = {
+        "BER": [
+            {
+                "destination_code": "LIS",
+                "destination_iata": "LIS",
+                "destination_name": "Lisbon",
+                "destination_type": "CITY",
+                "price": "210.00",
+                "currency_code": "EUR",
+                "departure_date": "2026-07-01",
+                "raw_json": {},
+            }
+        ]
+    }
+
+    response = client.post(
+        "/searches",
+        data={
+            "origin_iata": "BER",
+            "origin_sub_type": "AIRPORT",
+            "origin_provider_sky_id": "BER",
+            "origin_provider_entity_id": "95673383",
+            "preferences": "walkable city",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        search = Search.query.order_by(Search.id.desc()).first()
+        assert search is not None
+        assert search.origins[0].provider_sky_id == "BER"
+        assert search.origins[0].provider_entity_id == "95673383"
+
+
 def test_homepage_renders_recent_searches(client, app):
     with app.app_context():
         db.session.add(Search(status="COMPLETED"))

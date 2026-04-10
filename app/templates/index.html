@@ -90,6 +90,8 @@
                 <button type="button" data-remove-origin>&times;</button>
                 <input type="hidden" name="origin_iata" value="{{ origin.iata or origin.iata_code }}" />
                 <input type="hidden" name="origin_sub_type" value="{{ origin.sub_type }}" />
+                <input type="hidden" name="origin_provider_sky_id" value="{{ origin.provider_sky_id or '' }}" />
+                <input type="hidden" name="origin_provider_entity_id" value="{{ origin.provider_entity_id or '' }}" />
               </div>
             {% endfor %}
           </div>
