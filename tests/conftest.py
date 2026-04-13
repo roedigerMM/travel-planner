@@ -11,7 +11,7 @@ from app import create_app
 from app.extensions import db
 
 
-class DummyAmadeus:
+class DummyTravelDataProvider:
     def __init__(self):
         self.destinations_by_origin = {}
         self.location_results = []
@@ -83,7 +83,7 @@ def app(tmp_path):
             "TRAVEL_DATA_MODE": "live",
         }
     )
-    app.amadeus = DummyAmadeus()
+    app.travel_data = DummyTravelDataProvider()
     app.anthropic_enricher = DummyAnthropic()
     app.openai_normalizer = DummyOpenAI()
     with app.app_context():

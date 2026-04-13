@@ -2,8 +2,10 @@ import time
 
 import requests
 
+from .travel_data_provider import TravelDataProvider
 
-class AmadeusClient:
+
+class AmadeusClient(TravelDataProvider):
     def __init__(self, base_url: str, client_id: str, client_secret: str):
         self.base_url = base_url.rstrip("/")
         self.client_id = client_id
@@ -95,6 +97,8 @@ class AmadeusClient:
         max_price: float | None = None,
         currency_code: str | None = None,
         non_stop: bool | None = None,
+        origin_sky_id: str | None = None,
+        origin_entity_id: str | None = None,
     ) -> list[dict]:
         params = {"origin": origin_iata}
         if travel_month:

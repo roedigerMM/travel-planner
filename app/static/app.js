@@ -2,11 +2,15 @@ function createOriginChip(origin) {
   const chip = document.createElement("div");
   chip.className = "chip";
   chip.dataset.originChip = "true";
+  const providerSkyId = origin.provider_sky_id || "";
+  const providerEntityId = origin.provider_entity_id || "";
   chip.innerHTML = `
     <span>${origin.iata} · ${origin.sub_type}</span>
     <button type="button" data-remove-origin aria-label="Remove ${origin.iata}">&times;</button>
     <input type="hidden" name="origin_iata" value="${origin.iata}" />
     <input type="hidden" name="origin_sub_type" value="${origin.sub_type}" />
+    <input type="hidden" name="origin_provider_sky_id" value="${providerSkyId}" />
+    <input type="hidden" name="origin_provider_entity_id" value="${providerEntityId}" />
   `;
   chip.querySelector("[data-remove-origin]").addEventListener("click", () => chip.remove());
   return chip;
@@ -52,7 +56,14 @@ function renderCandidates(container, candidates) {
 
   const cards = candidates.map((candidate) => `
     <li class="candidate-card">
-      <strong>${candidate.destination_iata}</strong>
+      <strong>${candidate.destination_name || candidate.destination_iata || candidate.destination_code}</strong>
+      ${
+        candidate.destination_code && candidate.destination_code !== (candidate.destination_name || "")
+          ? `<p><small>Code: ${candidate.destination_code}${candidate.destination_type ? ` · ${candidate.destination_type}` : ""}</small></p>`
+          : candidate.destination_type
+            ? `<p><small>${candidate.destination_type}</small></p>`
+            : ""
+      }
       ${candidate.price !== null ? `<span> — ${candidate.price.toFixed(2)} ${candidate.currency_code || ""}</span>` : ""}
       ${candidate.source === "demo" ? "<p><em>Demo data fallback</em></p>" : ""}
       <p>Origins: ${candidate.origin_iatas.join(", ")}</p>
@@ -99,7 +110,14 @@ document.querySelectorAll("[data-origin-picker]").forEach((form) => {
         wrapper.className = "suggestion";
         wrapper.innerHTML = `<button type="button">${item.iata} · ${item.name || item.city_name || "Unknown"} (${item.sub_type})</button>`;
         wrapper.querySelector("button").addEventListener("click", () => {
-          selected.appendChild(createOriginChip({ iata: item.iata, sub_type: item.sub_type }));
+          selected.appendChild(
+            createOriginChip({
+              iata: item.iata,
+              sub_type: item.sub_type,
+              provider_sky_id: item.provider_sky_id,
+              provider_entity_id: item.provider_entity_id,
+            }),
+          );
           searchInput.value = "";
           suggestions.innerHTML = "";
         });

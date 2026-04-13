@@ -57,5 +57,80 @@ DEMO_DESTINATIONS = {
 }
 
 
+DEMO_LOCATIONS = [
+    {
+        "sub_type": "AIRPORT",
+        "name": "Berlin Brandenburg",
+        "iata": "BER",
+        "city_name": "Berlin",
+        "city_code": "BER",
+        "country_code": "DE",
+    },
+    {
+        "sub_type": "AIRPORT",
+        "name": "Munich Airport",
+        "iata": "MUC",
+        "city_name": "Munich",
+        "city_code": "MUC",
+        "country_code": "DE",
+    },
+    {
+        "sub_type": "AIRPORT",
+        "name": "Boston Logan",
+        "iata": "BOS",
+        "city_name": "Boston",
+        "city_code": "BOS",
+        "country_code": "US",
+    },
+    {
+        "sub_type": "CITY",
+        "name": "Berlin",
+        "iata": "BER",
+        "city_name": "Berlin",
+        "city_code": "BER",
+        "country_code": "DE",
+    },
+    {
+        "sub_type": "CITY",
+        "name": "Munich",
+        "iata": "MUC",
+        "city_name": "Munich",
+        "city_code": "MUC",
+        "country_code": "DE",
+    },
+    {
+        "sub_type": "CITY",
+        "name": "Boston",
+        "iata": "BOS",
+        "city_name": "Boston",
+        "city_code": "BOS",
+        "country_code": "US",
+    },
+]
+
+
 def get_demo_destinations(origin_iata: str) -> list[dict]:
     return [dict(item) for item in DEMO_DESTINATIONS.get(origin_iata, [])]
+
+
+def get_demo_locations(keyword: str, subtypes=None, limit: int = 5) -> list[dict]:
+    query = (keyword or "").strip().lower()
+    normalized_subtypes = {item.upper() for item in (subtypes or ["AIRPORT", "CITY"])}
+
+    matches = []
+    for item in DEMO_LOCATIONS:
+        if item["sub_type"].upper() not in normalized_subtypes:
+            continue
+
+        haystack = " ".join(
+            [
+                item.get("iata") or "",
+                item.get("name") or "",
+                item.get("city_name") or "",
+                item.get("city_code") or "",
+            ]
+        ).lower()
+        if query in haystack:
+            matches.append(dict(item))
+
+    return matches[:limit]

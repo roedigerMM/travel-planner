@@ -14,6 +14,7 @@ from .models import (
 )
 from .services.ai_clients import AnthropicEnricher, OpenAINormalizer
 from .services.amadeus_client import AmadeusClient
+from .services.rapidapi_skyscanner_client import RapidApiSkyscannerClient
 
 
 def create_app(test_config: dict | None = None) -> Flask:
@@ -25,12 +26,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     db.init_app(app)
     register_sqlite_fk_pragma()
 
-    # Instantiate Amadeus client with config
-    app.amadeus = AmadeusClient(
-        base_url=app.config["AMADEUS_BASE_URL"],
-        client_id=app.config.get("AMADEUS_CLIENT_ID") or "",
-        client_secret=app.config.get("AMADEUS_CLIENT_SECRET") or "",
-    )
+    app.travel_data = create_travel_data_provider(app.config)
     app.openai_normalizer = OpenAINormalizer(
         api_base=app.config["OPENAI_API_BASE"],
         api_key=app.config.get("OPENAI_API_KEY") or "",
@@ -47,6 +43,25 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     register_cli(app)
     return app
+
+
+def create_travel_data_provider(config: dict):
+    travel_data_provider = (config.get("TRAVEL_DATA_PROVIDER") or "amadeus").lower()
+    if travel_data_provider == "amadeus":
+        return AmadeusClient(
+            base_url=config["AMADEUS_BASE_URL"],
+            client_id=config.get("AMADEUS_CLIENT_ID") or "",
+            client_secret=config.get("AMADEUS_CLIENT_SECRET") or "",
+        )
+    if travel_data_provider == "rapidapi_skyscanner":
+        return RapidApiSkyscannerClient(
+            api_key=config.get("RAPIDAPI_KEY") or "",
+            host=config["RAPIDAPI_SKYSCANNER_HOST"],
+            market=config["RAPIDAPI_MARKET"],
+            locale=config["RAPIDAPI_LOCALE"],
+            destination_limit=config["RAPIDAPI_DESTINATION_LIMIT"],
+        )
+    raise ValueError(f"Unsupported TRAVEL_DATA_PROVIDER: {travel_data_provider}")
 
 
 def register_sqlite_fk_pragma() -> None:
@@ -126,7 +141,10 @@ def register_cli(app: Flask) -> None:
                 DestinationCandidate(
                     search_id=search.id,
                     origin_iata="BER",
+                    destination_code="LIS",
                     destination_iata="LIS",
+                    destination_name="Lisbon",
+                    destination_type="CITY",
                     price=189.00,
                     currency_code="EUR",
                     departure_date="2026-07-01",
@@ -137,7 +155,10 @@ def register_cli(app: Flask) -> None:
                 DestinationCandidate(
                     search_id=search.id,
                     origin_iata="MUC",
+                    destination_code="LIS",
                     destination_iata="LIS",
+                    destination_name="Lisbon",
+                    destination_type="CITY",
                     price=219.00,
                     currency_code="EUR",
                     departure_date="2026-07-02",
@@ -146,7 +167,10 @@ def register_cli(app: Flask) -> None:
                 DestinationCandidate(
                     search_id=search.id,
                     origin_iata="BER",
+                    destination_code="BCN",
                     destination_iata="BCN",
+                    destination_name="Barcelona",
+                    destination_type="CITY",
                     price=155.00,
                     currency_code="EUR",
                     departure_date="2026-07-05",
