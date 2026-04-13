@@ -59,6 +59,7 @@ def create_travel_data_provider(config: dict):
             host=config["RAPIDAPI_SKYSCANNER_HOST"],
             market=config["RAPIDAPI_MARKET"],
             locale=config["RAPIDAPI_LOCALE"],
+            destination_limit=config["RAPIDAPI_DESTINATION_LIMIT"],
         )
     raise ValueError(f"Unsupported TRAVEL_DATA_PROVIDER: {travel_data_provider}")
 

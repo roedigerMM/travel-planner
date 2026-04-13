@@ -313,6 +313,7 @@ def test_create_app_supports_rapidapi_skyscanner_provider(tmp_path):
             "RAPIDAPI_SKYSCANNER_HOST": "skyscanner-flights-travel-api.p.rapidapi.com",
             "RAPIDAPI_MARKET": "DE",
             "RAPIDAPI_LOCALE": "de-DE",
+            "RAPIDAPI_DESTINATION_LIMIT": 10,
         }
     )
 
@@ -605,6 +606,52 @@ def test_rapidapi_skyscanner_search_destinations_keeps_preview_price_if_month_lo
     assert items[0]["price"] == 13.97
     assert items[0]["departure_date"] is None
     assert items[0]["currency_code"] == "GBP"
+
+
+def test_rapidapi_skyscanner_search_destinations_limits_monthly_price_lookups():
+    client = RapidApiSkyscannerClient(
+        api_key="test-key",
+        host="skyscanner-flights-travel-api.p.rapidapi.com",
+        market="DE",
+        locale="de-DE",
+        destination_limit=2,
+    )
+    everywhere_response = Mock()
+    everywhere_response.json.return_value = {
+        "destinations": [
+            {"skyId": "LISB", "entityId": "1", "name": "Lisbon", "price": 100, "currency": "EUR"},
+            {"skyId": "ROME", "entityId": "2", "name": "Rome", "price": 110, "currency": "EUR"},
+            {"skyId": "PARI", "entityId": "3", "name": "Paris", "price": 120, "currency": "EUR"},
+        ]
+    }
+    everywhere_response.raise_for_status.return_value = None
+
+    cheapest_lisbon_response = Mock()
+    cheapest_lisbon_response.json.return_value = {
+        "cheapest": [{"date": "2026-07-01", "price": 90, "currency": "EUR"}]
+    }
+    cheapest_lisbon_response.raise_for_status.return_value = None
+
+    cheapest_rome_response = Mock()
+    cheapest_rome_response.json.return_value = {
+        "cheapest": [{"date": "2026-07-02", "price": 95, "currency": "EUR"}]
+    }
+    cheapest_rome_response.raise_for_status.return_value = None
+
+    with patch(
+        "app.services.rapidapi_skyscanner_client.requests.get",
+        side_effect=[everywhere_response, cheapest_lisbon_response, cheapest_rome_response],
+    ) as mock_get:
+        items = client.search_destinations(
+            origin_iata="LON",
+            origin_sky_id="LOND",
+            origin_entity_id="27544008",
+            travel_month="2026-07",
+            currency_code="EUR",
+        )
+
+    assert [item["destination_code"] for item in items] == ["LISB", "ROME"]
+    assert mock_get.call_count == 3
 
 
 def test_ui_create_search_persists_origin_provider_metadata(client, app):

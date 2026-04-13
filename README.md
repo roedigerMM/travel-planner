@@ -67,6 +67,7 @@ pip install -r requirements.txt
        - `RAPIDAPI_SKYSCANNER_HOST`
        - `RAPIDAPI_MARKET`
        - `RAPIDAPI_LOCALE`
+       - `RAPIDAPI_DESTINATION_LIMIT`
    - `OPENAI_API_KEY`
    - `ANTHROPIC_API_KEY`
 5. Choose the travel provider:
@@ -84,6 +85,7 @@ RAPIDAPI_KEY=...
 RAPIDAPI_SKYSCANNER_HOST=skyscanner-flights-travel-api.p.rapidapi.com
 RAPIDAPI_MARKET=DE
 RAPIDAPI_LOCALE=de-DE
+RAPIDAPI_DESTINATION_LIMIT=10
 TRAVEL_DATA_MODE=auto
 ```
 
@@ -153,6 +155,9 @@ If the live travel provider is flaky, `TRAVEL_DATA_MODE=auto` keeps the demo sta
 - RapidAPI free-plan quotas can interrupt live testing:
   - when limits are exceeded, `TRAVEL_DATA_MODE=auto` falls back to demo data
   - if no matching demo suggestions exist, the API can still return `502`
+- RapidAPI paid-plan quotas should still be protected for demos:
+  - `RAPIDAPI_DESTINATION_LIMIT` caps how many destination candidates receive monthly price lookups
+  - default is `10`, which keeps one search to roughly 1 discovery request plus up to 10 monthly pricing requests
 - `getCheapestOneway` required an extra client-side month filter:
   - the endpoint may return entries outside the requested month
   - the app now filters those entries before choosing the cheapest day

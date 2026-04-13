@@ -10,12 +10,14 @@ class RapidApiSkyscannerClient(TravelDataProvider):
         host: str,
         market: str = "DE",
         locale: str = "de-DE",
+        destination_limit: int = 10,
         timeout: int = 20,
     ):
         self.api_key = api_key
         self.host = host
         self.market = market
         self.locale = locale
+        self.destination_limit = max(1, int(destination_limit))
         self.timeout = timeout
         self.base_url = f"https://{host}".rstrip("/")
 
@@ -162,7 +164,7 @@ class RapidApiSkyscannerClient(TravelDataProvider):
         payload = self._get("/flights/searchFlightEverywhere", params=params)
 
         destinations = []
-        for item in payload.get("destinations", []):
+        for item in payload.get("destinations", [])[: self.destination_limit]:
             destination_code = (item.get("skyId") or "").strip().upper()
             if not destination_code:
                 continue

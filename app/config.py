@@ -22,6 +22,7 @@ class Config:
     RAPIDAPI_SKYSCANNER_HOST = os.getenv("RAPIDAPI_SKYSCANNER_HOST", "skyscanner-flights-travel-api.p.rapidapi.com")
     RAPIDAPI_MARKET = os.getenv("RAPIDAPI_MARKET", "DE")
     RAPIDAPI_LOCALE = os.getenv("RAPIDAPI_LOCALE", "de-DE")
+    RAPIDAPI_DESTINATION_LIMIT = int(os.getenv("RAPIDAPI_DESTINATION_LIMIT", "10"))
     OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
