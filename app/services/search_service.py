@@ -206,6 +206,9 @@ def fetch_destination_offers(origin: SearchOrigin, search: Search) -> tuple[list
 def aggregate_candidates(candidates: list[DestinationCandidate]) -> list[dict[str, Any]]:
     merged: dict[str, dict[str, Any]] = {}
     for candidate in candidates:
+        if not candidate.departure_date:
+            continue
+
         destination = candidate.destination_code or candidate.destination_iata or ""
         if destination not in merged:
             merged[destination] = {
@@ -260,6 +263,8 @@ def aggregate_candidates(candidates: list[DestinationCandidate]) -> list[dict[st
     return sorted(
         merged.values(),
         key=lambda item: (
+            item["ai_fit_score"] is None,
+            -(item["ai_fit_score"] or 0),
             item["price"] is None,
             item["price"] if item["price"] is not None else 0,
             item["destination_name"] or item["destination_code"],

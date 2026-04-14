@@ -281,6 +281,92 @@ def test_api_create_search_supports_provider_destination_codes_without_iata(clie
     assert payload["candidates"][0]["destination_iata"] == "LISB"
 
 
+def test_api_candidates_hide_items_without_departure_date(client, app):
+    app.travel_data.destinations_by_origin = {
+        "BER": [
+            {
+                "destination_code": "LIS",
+                "destination_iata": "LIS",
+                "destination_name": "Lisbon",
+                "destination_type": "CITY",
+                "price": "210.00",
+                "currency_code": "EUR",
+                "departure_date": "2026-07-01",
+                "raw_json": {},
+            },
+            {
+                "destination_code": "MAD",
+                "destination_iata": "MAD",
+                "destination_name": "Madrid",
+                "destination_type": "CITY",
+                "price": "120.00",
+                "currency_code": "EUR",
+                "departure_date": None,
+                "raw_json": {},
+            },
+        ]
+    }
+
+    response = client.post(
+        "/api/searches",
+        json={
+            "origins": [{"iata": "BER", "sub_type": "AIRPORT"}],
+            "preferences": ["walkable city"],
+        },
+    )
+
+    payload = response.get_json()
+    assert response.status_code == 201
+    assert [item["destination_code"] for item in payload["candidates"]] == ["LIS"]
+    assert payload["candidates"][0]["departure_date"] == "2026-07-01"
+
+
+def test_api_candidates_sort_by_fit_score_descending_after_enrichment(client, app):
+    app.travel_data.destinations_by_origin = {
+        "BER": [
+            {
+                "destination_code": "LIS",
+                "destination_iata": "LIS",
+                "destination_name": "Lisbon",
+                "destination_type": "CITY",
+                "price": "210.00",
+                "currency_code": "EUR",
+                "departure_date": "2026-07-01",
+                "raw_json": {},
+            },
+            {
+                "destination_code": "ATH",
+                "destination_iata": "ATH",
+                "destination_name": "Athens",
+                "destination_type": "CITY",
+                "price": "180.00",
+                "currency_code": "EUR",
+                "departure_date": "2026-07-02",
+                "raw_json": {},
+            },
+        ]
+    }
+    app.anthropic_enricher.responses = {
+        "LIS": {"fit_score": 72, "rationale": "Good option."},
+        "ATH": {"fit_score": 94, "rationale": "Best match."},
+    }
+    create_response = client.post(
+        "/api/searches",
+        json={
+            "origins": [{"iata": "BER", "sub_type": "AIRPORT"}],
+            "preferences": ["warm weather", "good food"],
+        },
+    )
+    search_id = create_response.get_json()["id"]
+
+    response = client.post(f"/api/searches/{search_id}/enrich")
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert [item["destination_code"] for item in payload["candidates"]] == ["ATH", "LIS"]
+    assert [item["ai_fit_score"] for item in payload["candidates"]] == [94, 72]
+
+
 def test_api_preferences_chat_rejects_empty_messages(client):
     response = client.post("/api/preferences/chat", json={"messages": []})
 
