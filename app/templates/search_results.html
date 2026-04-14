@@ -3,11 +3,11 @@
 {% block title %}Search #{{ search.id }}{% endblock %}
 
 {% block content %}
-  <section class="results-header">
+  <section class="results-header page-intro">
     <div>
       <p class="eyebrow">Search #{{ search.id }}</p>
-      <h1>{{ search.status }}</h1>
-      <p class="lede">Saved on {{ search.created_at.strftime("%Y-%m-%d %H:%M") }}.</p>
+      <h1>Destination candidates</h1>
+      <p class="lede">Saved on {{ search.created_at.strftime("%Y-%m-%d %H:%M") }}. Review route coverage, pricing, and preference fit before you shortlist.</p>
     </div>
     <div class="actions">
       <a class="button-secondary" href="{{ url_for('ui.index') }}">Create another search</a>
@@ -23,90 +23,150 @@
     </div>
   </section>
 
-  <p class="notice" data-enrich-status>
+  <p class="notice notice-info" data-enrich-status aria-live="polite">
     {% if not search.preferences and not search.preference_summary and not search.trip_type %}
       Add preferences first to prepare this search for AI enrichment.
     {% elif not candidates %}
       Add candidates first before trying AI enrichment.
     {% else %}
-      AI enrichment now uses your saved preferences and updates the candidate list below without a full page reload.
+      AI enrichment uses your saved preferences and updates the candidate list without a full page reload.
     {% endif %}
   </p>
 
-  <section>
-    <h2>Search settings</h2>
-    <ul>
-      <li><strong>Travel month:</strong> {{ search.travel_month or "—" }}</li>
-      <li><strong>Duration days:</strong> {{ search.duration_days or "—" }}</li>
-      <li><strong>Max price:</strong>
+  <section class="summary-grid" aria-label="Search summary">
+    <article class="summary-card">
+      <span class="summary-label">Status</span>
+      <strong class="status-badge status-{{ search.status|lower }}">{{ search.status }}</strong>
+    </article>
+    <article class="summary-card">
+      <span class="summary-label">Travel month</span>
+      <strong>{{ search.travel_month or "Anytime" }}</strong>
+    </article>
+    <article class="summary-card">
+      <span class="summary-label">Duration</span>
+      <strong>{% if search.duration_days %}{{ search.duration_days }} days{% else %}Flexible{% endif %}</strong>
+    </article>
+    <article class="summary-card">
+      <span class="summary-label">Budget</span>
+      <strong>
         {% if search.max_price %}
           {{ search.max_price }} {{ search.currency_code or "" }}
         {% else %}
-          —
+          No cap
         {% endif %}
-      </li>
-      <li><strong>Non-stop:</strong> {{ "Yes" if search.non_stop else "No" }}</li>
-      <li><strong>Status:</strong> {{ search.status }}</li>
-    </ul>
-    {% if search.preference_summary %}
-      <p><strong>Preference summary:</strong> {{ search.preference_summary }}</p>
-    {% endif %}
-    {% if search.preferences %}
-      <div class="chip-list">
-        {% for preference in search.preferences %}
-          <div class="chip">
-            <span>{{ preference.label }}</span>
-          </div>
-        {% endfor %}
+      </strong>
+    </article>
+    <article class="summary-card">
+      <span class="summary-label">Route type</span>
+      <strong>{{ "Non-stop only" if search.non_stop else "All routes" }}</strong>
+    </article>
+  </section>
+
+  <section class="details-grid">
+    <article class="card">
+      <div class="section-heading compact">
+        <p class="eyebrow">Intent</p>
+        <h2>Preferences</h2>
       </div>
-    {% endif %}
-    {% if search.trip_type %}
-      <p><strong>Legacy trip type:</strong> {{ search.trip_type.value }}</p>
-    {% endif %}
+      {% if search.preference_summary %}
+        <p class="summary-copy">{{ search.preference_summary }}</p>
+      {% else %}
+        <p class="empty-state">No preference summary was saved for this search.</p>
+      {% endif %}
+      {% if search.preferences %}
+        <div class="chip-list">
+          {% for preference in search.preferences %}
+            <div class="chip">
+              <span>{{ preference.label }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% if search.trip_type %}
+        <p class="meta-line">Legacy trip type: {{ search.trip_type.value }}</p>
+      {% endif %}
+    </article>
+
+    <article class="card">
+      <div class="section-heading compact">
+        <p class="eyebrow">Coverage</p>
+        <h2>Origins</h2>
+      </div>
+      {% if origins %}
+        <ul class="origin-list">
+          {% for origin in origins %}
+            <li>
+              <div>
+                <strong>{{ origin.iata_code }}</strong>
+                <span>{{ origin.sub_type }}</span>
+              </div>
+              <span class="status-badge status-{{ origin.status|lower }}">{{ origin.status }}</span>
+              {% if origin.error_message %}
+                <p class="error-text">{{ origin.error_message }}</p>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">No origins saved.</p>
+      {% endif %}
+    </article>
   </section>
 
-  <section>
-    <h2>Origins</h2>
-    {% if origins %}
-      <ul>
-        {% for origin in origins %}
-          <li>
-            <strong>{{ origin.iata_code }}</strong> ({{ origin.sub_type }}) — {{ origin.status }}
-            {% if origin.error_message %}
-              <br />{{ origin.error_message }}
-            {% endif %}
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p>No origins saved.</p>
-    {% endif %}
-  </section>
-
-  <section>
-    <h2>Merged destination candidates</h2>
+  <section class="results-section">
+    <div class="section-heading">
+      <p class="eyebrow">Shortlist</p>
+      <h2>Merged destination candidates</h2>
+      <p>Cards combine candidates across all saved origins so the best overlaps are easier to compare.</p>
+    </div>
     <div data-candidates-container>
       {% if candidates %}
         <ul class="candidate-list">
           {% for c in candidates %}
             <li class="candidate-card">
-              <strong>{{ c.destination_name or c.destination_iata or c.destination_code }}</strong>
-              {% if c.destination_code and c.destination_code != (c.destination_name or '') %}
-                <p><small>Code: {{ c.destination_code }}{% if c.destination_type %} · {{ c.destination_type }}{% endif %}</small></p>
-              {% elif c.destination_type %}
-                <p><small>{{ c.destination_type }}</small></p>
+              <div class="candidate-topline">
+                <div>
+                  <h3>{{ c.destination_name or c.destination_iata or c.destination_code }}</h3>
+                  {% if c.destination_code and c.destination_code != (c.destination_name or '') %}
+                    <p class="meta-line">Code: {{ c.destination_code }}{% if c.destination_type %} · {{ c.destination_type }}{% endif %}</p>
+                  {% elif c.destination_type %}
+                    <p class="meta-line">{{ c.destination_type }}</p>
+                  {% endif %}
+                </div>
+                {% if c.ai_fit_score is not none %}
+                  <div class="fit-score">
+                    <span>{{ c.ai_fit_score }}</span>
+                    <small>/100 fit</small>
+                  </div>
+                {% endif %}
+              </div>
+
+              <dl class="candidate-facts">
+                <div>
+                  <dt>Price</dt>
+                  <dd>{% if c.price %}{{ c.price }} {{ c.currency_code or "" }}{% else %}Not available{% endif %}</dd>
+                </div>
+                <div>
+                  <dt>Origins</dt>
+                  <dd>{{ c.origin_iatas|join(", ") }}</dd>
+                </div>
+                <div>
+                  <dt>Departure</dt>
+                  <dd>{{ c.departure_date or "Flexible" }}</dd>
+                </div>
+              </dl>
+
+              {% if c.source == "demo" %}
+                <p class="demo-badge">Demo data fallback</p>
               {% endif %}
-              {% if c.price %}<span> — {{ c.price }} {{ c.currency_code or "" }}</span>{% endif %}
-              {% if c.source == "demo" %}<p><em>Demo data fallback</em></p>{% endif %}
-              <p>Origins: {{ c.origin_iatas|join(", ") }}</p>
-              {% if c.departure_date %}<p>Departure: {{ c.departure_date }}</p>{% endif %}
-              {% if c.ai_fit_score is not none %}<p><strong>Fit:</strong> {{ c.ai_fit_score }}/100</p>{% endif %}
-              {% if c.ai_rationale %}<p>{{ c.ai_rationale }}</p>{% endif %}
+              {% if c.ai_rationale %}
+                <p class="candidate-rationale">{{ c.ai_rationale }}</p>
+              {% endif %}
             </li>
           {% endfor %}
         </ul>
       {% else %}
-        <p>No candidates were stored for this search.</p>
+        <p class="empty-state empty-block">No candidates were stored for this search.</p>
       {% endif %}
     </div>
   </section>

@@ -12,7 +12,10 @@
     <header class="site-header">
       <div class="shell">
         <nav class="site-nav">
-          <a href="{{ url_for('ui.index') }}">Travel Planner</a>
+          <a class="brand" href="{{ url_for('ui.index') }}">
+            <span class="brand-mark" aria-hidden="true">TP</span>
+            <span>Travel Planner</span>
+          </a>
         </nav>
       </div>
     </header>

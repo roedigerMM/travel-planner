@@ -1,59 +1,72 @@
 {% extends "base.html" %}
 
-{% block title %}Destination Discovery{% endblock %}
+{% block title %}Plan a destination search{% endblock %}
 
 {% block content %}
-  <section class="hero">
-    <div>
-      <p class="eyebrow">Phase 1 MVP</p>
-      <h1>Destination Discovery</h1>
-      <p class="lede">Discover travel ideas from multiple origins with a server-rendered flow and lightweight enhancements.</p>
+  <section class="hero page-intro">
+    <div class="intro-copy">
+      <p class="eyebrow">Destination discovery</p>
+      <h1>Find trip ideas that match how you actually want to travel.</h1>
+      <p class="lede">Describe the trip, add your possible departure points, and compare destination candidates with transparent pricing and AI-assisted fit notes.</p>
+    </div>
+    <div class="intro-panel" aria-label="Search workflow">
+      <span>Preferences</span>
+      <span>Origins</span>
+      <span>Candidate match</span>
     </div>
   </section>
 
   {% if error %}
-    <p class="notice notice-error">{{ error }}</p>
+    <p class="notice notice-error" role="alert">{{ error }}</p>
   {% endif %}
 
-  <section class="grid">
-    <div class="card">
-      <h2>Plan a Search</h2>
+  <section class="grid app-layout">
+    <div class="card search-card">
+      <div class="section-heading">
+        <p class="eyebrow">New search</p>
+        <h2>Plan your trip search</h2>
+        <p>Start broad. You can refine the generated preferences and origin list before creating the search.</p>
+      </div>
+
       <form method="post" action="{{ url_for('ui.create_search') }}" data-origin-picker>
-        <section class="preference-chat" data-preference-chat>
+        <section class="form-section preference-chat" data-preference-chat aria-labelledby="preferences-title">
           <div class="chat-header">
             <div>
-              <h3>Preference Assistant</h3>
-              <p>Describe your ideal trip and let the assistant turn it into editable preference tags.</p>
+              <span class="step-badge">1</span>
+              <h3 id="preferences-title">Tell us what should make the trip feel right</h3>
+              <p>The assistant turns plain language into editable tags and a concise summary.</p>
             </div>
           </div>
 
-          <div class="chat-thread" data-preference-thread>
+          <div class="chat-thread" data-preference-thread aria-live="polite">
             <div class="chat-bubble chat-bubble-assistant">
-              Tell me what kind of trip you want. You can mention atmosphere, activities, pace, food, weather, or anything else that matters.
+              Mention atmosphere, activities, pace, food, weather, budget sensitivity, or anything else that matters.
             </div>
           </div>
 
           <div class="field-group">
-            <label for="preference-chat-input">Chat</label>
+            <label for="preference-chat-input">Trip brief</label>
             <textarea
               id="preference-chat-input"
               rows="3"
-              placeholder="For example: I want a lively walkable city with good food, some nightlife, and warm weather."
+              placeholder="Example: A lively, walkable city with excellent food, some nightlife, and warm weather."
               data-preference-input
             ></textarea>
-            <button type="button" class="button-secondary" data-preference-send>Ask Assistant</button>
+            <button type="button" class="button-secondary inline-action" data-preference-send>Generate preferences</button>
           </div>
 
           <div class="field-group">
             <label>Extracted preferences</label>
-            <div class="chip-list" data-preference-chips>
+            <div class="chip-list" data-preference-chips aria-label="Extracted preference tags">
               {% if form_data.preferences %}
                 {% for preference in form_data.preferences.split(",") if preference.strip() %}
                   <div class="chip" data-preference-chip>
                     <span>{{ preference.strip() }}</span>
-                    <button type="button" data-remove-preference>&times;</button>
+                    <button type="button" data-remove-preference aria-label="Remove {{ preference.strip() }}">&times;</button>
                   </div>
                 {% endfor %}
+              {% else %}
+                <p class="empty-inline">Generated tags will appear here.</p>
               {% endif %}
             </div>
             <small>You can remove tags before searching.</small>
@@ -72,94 +85,119 @@
           <input type="hidden" name="preferences" value="{{ form_data.preferences }}" data-preference-hidden />
         </section>
 
-        <div class="field-group">
-          <label for="origin-search">Origins</label>
-          <input
-            id="origin-search"
-            type="text"
-            autocomplete="off"
-            placeholder="Search airports or cities"
-            data-origin-search
-          />
-          <small>Type at least three characters, then add one or more suggestions.</small>
-          <div class="suggestions" data-origin-suggestions></div>
-          <div class="chip-list" data-selected-origins>
-            {% for origin in form_data.origins %}
-              <div class="chip" data-origin-chip>
-                <span>{{ origin.iata or origin.iata_code }} · {{ origin.sub_type }}</span>
-                <button type="button" data-remove-origin>&times;</button>
-                <input type="hidden" name="origin_iata" value="{{ origin.iata or origin.iata_code }}" />
-                <input type="hidden" name="origin_sub_type" value="{{ origin.sub_type }}" />
-                <input type="hidden" name="origin_provider_sky_id" value="{{ origin.provider_sky_id or '' }}" />
-                <input type="hidden" name="origin_provider_entity_id" value="{{ origin.provider_entity_id or '' }}" />
-              </div>
-            {% endfor %}
+        <section class="form-section" aria-labelledby="origins-title">
+          <div class="section-heading compact">
+            <span class="step-badge">2</span>
+            <h3 id="origins-title">Add possible departure points</h3>
+            <p>Search airports or cities, then add one or more origins to compare destination options.</p>
           </div>
-        </div>
 
-        <div class="field-group">
-          <label for="origins_manual">Manual fallback</label>
-          <input
-            id="origins_manual"
-            name="origins_manual"
-            type="text"
-            placeholder="BER, HAM, PRG"
-            value="{{ form_data.origins_manual }}"
-          />
-          <small>Optional fallback if you want to paste IATA codes instead of using suggestions.</small>
-        </div>
-
-        <div class="two-column">
           <div class="field-group">
-            <label for="travel_month">Travel month (optional)</label>
-            <input id="travel_month" name="travel_month" type="month" value="{{ form_data.travel_month }}" />
-            <small>Format stored as YYYY-MM.</small>
-          </div>
-          <div class="field-group">
-            <label for="duration_days">Duration in days (optional)</label>
-            <input id="duration_days" name="duration_days" type="number" min="1" value="{{ form_data.duration_days }}" />
-          </div>
-        </div>
-
-        <div class="two-column">
-          <div class="field-group">
-            <label for="max_price">Max price (optional)</label>
-            <input id="max_price" name="max_price" type="number" min="0" step="0.01" value="{{ form_data.max_price }}" />
-          </div>
-          <div class="field-group">
-            <label for="currency_code">Currency</label>
+            <label for="origin-search">Origin search</label>
             <input
-              id="currency_code"
-              name="currency_code"
+              id="origin-search"
               type="text"
-              maxlength="3"
-              value="{{ form_data.currency_code }}"
+              autocomplete="off"
+              placeholder="Start typing Berlin, BER, Munich..."
+              data-origin-search
+              aria-describedby="origin-help"
             />
+            <small id="origin-help">Type at least three characters, then choose from the suggestions.</small>
+            <div class="suggestions" data-origin-suggestions aria-live="polite"></div>
+            <div class="chip-list selected-list" data-selected-origins aria-label="Selected origins">
+              {% for origin in form_data.origins %}
+                <div class="chip" data-origin-chip>
+                  <span>{{ origin.iata or origin.iata_code }} · {{ origin.sub_type }}</span>
+                  <button type="button" data-remove-origin aria-label="Remove {{ origin.iata or origin.iata_code }}">&times;</button>
+                  <input type="hidden" name="origin_iata" value="{{ origin.iata or origin.iata_code }}" />
+                  <input type="hidden" name="origin_sub_type" value="{{ origin.sub_type }}" />
+                  <input type="hidden" name="origin_provider_sky_id" value="{{ origin.provider_sky_id or '' }}" />
+                  <input type="hidden" name="origin_provider_entity_id" value="{{ origin.provider_entity_id or '' }}" />
+                </div>
+              {% endfor %}
+            </div>
           </div>
-        </div>
 
-        <div class="checkbox-row">
-          <label for="non_stop">Non-stop only</label>
-          <input id="non_stop" name="non_stop" type="checkbox" {% if form_data.non_stop %}checked{% endif %} />
-        </div>
+          <div class="field-group">
+            <label for="origins_manual">Manual fallback <span class="optional">(optional)</span></label>
+            <input
+              id="origins_manual"
+              name="origins_manual"
+              type="text"
+              placeholder="BER, HAM, PRG"
+              value="{{ form_data.origins_manual }}"
+            />
+            <small>Use this when you already know the IATA codes.</small>
+          </div>
+        </section>
 
-        <button type="submit" class="button-primary">Create search</button>
+        <section class="form-section" aria-labelledby="constraints-title">
+          <div class="section-heading compact">
+            <span class="step-badge">3</span>
+            <h3 id="constraints-title">Set timing and budget</h3>
+            <p>Optional constraints help narrow the results without making the search brittle.</p>
+          </div>
+
+          <div class="two-column">
+            <div class="field-group">
+              <label for="travel_month">Travel month <span class="optional">(optional)</span></label>
+              <input id="travel_month" name="travel_month" type="month" value="{{ form_data.travel_month }}" />
+            </div>
+            <div class="field-group">
+              <label for="duration_days">Duration in days <span class="optional">(optional)</span></label>
+              <input id="duration_days" name="duration_days" type="number" min="1" value="{{ form_data.duration_days }}" />
+            </div>
+          </div>
+
+          <div class="two-column">
+            <div class="field-group">
+              <label for="max_price">Max price <span class="optional">(optional)</span></label>
+              <input id="max_price" name="max_price" type="number" min="0" step="0.01" value="{{ form_data.max_price }}" />
+            </div>
+            <div class="field-group">
+              <label for="currency_code">Currency</label>
+              <input
+                id="currency_code"
+                name="currency_code"
+                type="text"
+                maxlength="3"
+                value="{{ form_data.currency_code }}"
+              />
+            </div>
+          </div>
+
+          <div class="checkbox-row">
+            <div>
+              <label for="non_stop">Non-stop only</label>
+              <small>Prioritize direct routes when the provider supports it.</small>
+            </div>
+            <input id="non_stop" name="non_stop" type="checkbox" {% if form_data.non_stop %}checked{% endif %} />
+          </div>
+        </section>
+
+        <div class="form-actions">
+          <button type="submit" class="button-primary button-block">Create search</button>
+          <p>Results are saved so you can enrich or revisit them later.</p>
+        </div>
       </form>
     </div>
 
-    <aside class="card">
-      <h2>Recent Searches</h2>
+    <aside class="card sidebar-card" aria-labelledby="recent-title">
+      <div class="section-heading compact">
+        <p class="eyebrow">Workspace</p>
+        <h2 id="recent-title">Recent Searches</h2>
+      </div>
       {% if recent_searches %}
         <ul class="recent-list">
           {% for item in recent_searches %}
             <li>
               <a href="{{ url_for('ui.view_search', search_id=item.id) }}">Search #{{ item.id }}</a>
-              <span>{{ item.status }}</span>
+              <span class="status-badge status-{{ item.status|lower }}">{{ item.status }}</span>
             </li>
           {% endfor %}
         </ul>
       {% else %}
-        <p>No searches yet. Your latest searches will show up here.</p>
+        <p class="empty-state">No searches yet. Create one to start building a reusable shortlist.</p>
       {% endif %}
     </aside>
   </section>

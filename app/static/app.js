@@ -1,14 +1,30 @@
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = value == null ? "" : String(value);
+  return div.innerHTML;
+}
+
+function hasValue(value) {
+  return value !== null && value !== undefined && value !== "";
+}
+
+function clearInlineEmptyState(container) {
+  container.querySelectorAll(".empty-inline").forEach((element) => element.remove());
+}
+
 function createOriginChip(origin) {
   const chip = document.createElement("div");
   chip.className = "chip";
   chip.dataset.originChip = "true";
-  const providerSkyId = origin.provider_sky_id || "";
-  const providerEntityId = origin.provider_entity_id || "";
+  const iata = escapeHtml(origin.iata);
+  const subType = escapeHtml(origin.sub_type);
+  const providerSkyId = escapeHtml(origin.provider_sky_id || "");
+  const providerEntityId = escapeHtml(origin.provider_entity_id || "");
   chip.innerHTML = `
-    <span>${origin.iata} · ${origin.sub_type}</span>
-    <button type="button" data-remove-origin aria-label="Remove ${origin.iata}">&times;</button>
-    <input type="hidden" name="origin_iata" value="${origin.iata}" />
-    <input type="hidden" name="origin_sub_type" value="${origin.sub_type}" />
+    <span>${iata} · ${subType}</span>
+    <button type="button" data-remove-origin aria-label="Remove ${iata}">&times;</button>
+    <input type="hidden" name="origin_iata" value="${iata}" />
+    <input type="hidden" name="origin_sub_type" value="${subType}" />
     <input type="hidden" name="origin_provider_sky_id" value="${providerSkyId}" />
     <input type="hidden" name="origin_provider_entity_id" value="${providerEntityId}" />
   `;
@@ -20,9 +36,10 @@ function createPreferenceChip(label) {
   const chip = document.createElement("div");
   chip.className = "chip";
   chip.dataset.preferenceChip = "true";
+  const safeLabel = escapeHtml(label);
   chip.innerHTML = `
-    <span>${label}</span>
-    <button type="button" data-remove-preference aria-label="Remove ${label}">&times;</button>
+    <span>${safeLabel}</span>
+    <button type="button" data-remove-preference aria-label="Remove ${safeLabel}">&times;</button>
   `;
   chip.querySelector("[data-remove-preference]").addEventListener("click", () => {
     chip.remove();
@@ -36,8 +53,13 @@ function updatePreferenceHiddenValue(container) {
     return;
   }
   const hidden = container.querySelector("[data-preference-hidden]");
+  const chips = container.querySelector("[data-preference-chips]");
   const labels = Array.from(container.querySelectorAll("[data-preference-chip] span")).map((el) => el.textContent.trim());
   hidden.value = labels.join(", ");
+
+  if (chips && labels.length === 0 && !chips.querySelector(".empty-inline")) {
+    chips.innerHTML = '<p class="empty-inline">Generated tags will appear here.</p>';
+  }
 }
 
 function appendChatBubble(thread, role, content) {
@@ -48,30 +70,67 @@ function appendChatBubble(thread, role, content) {
   thread.scrollTop = thread.scrollHeight;
 }
 
+function candidateMeta(candidate) {
+  if (candidate.destination_code && candidate.destination_code !== (candidate.destination_name || "")) {
+    const type = candidate.destination_type ? ` · ${escapeHtml(candidate.destination_type)}` : "";
+    return `<p class="meta-line">Code: ${escapeHtml(candidate.destination_code)}${type}</p>`;
+  }
+  if (candidate.destination_type) {
+    return `<p class="meta-line">${escapeHtml(candidate.destination_type)}</p>`;
+  }
+  return "";
+}
+
 function renderCandidates(container, candidates) {
   if (!candidates || candidates.length === 0) {
-    container.innerHTML = "<p>No candidates were stored for this search.</p>";
+    container.innerHTML = '<p class="empty-state empty-block">No candidates were stored for this search.</p>';
     return;
   }
 
-  const cards = candidates.map((candidate) => `
-    <li class="candidate-card">
-      <strong>${candidate.destination_name || candidate.destination_iata || candidate.destination_code}</strong>
-      ${
-        candidate.destination_code && candidate.destination_code !== (candidate.destination_name || "")
-          ? `<p><small>Code: ${candidate.destination_code}${candidate.destination_type ? ` · ${candidate.destination_type}` : ""}</small></p>`
-          : candidate.destination_type
-            ? `<p><small>${candidate.destination_type}</small></p>`
-            : ""
-      }
-      ${candidate.price !== null ? `<span> — ${candidate.price.toFixed(2)} ${candidate.currency_code || ""}</span>` : ""}
-      ${candidate.source === "demo" ? "<p><em>Demo data fallback</em></p>" : ""}
-      <p>Origins: ${candidate.origin_iatas.join(", ")}</p>
-      ${candidate.departure_date ? `<p>Departure: ${candidate.departure_date}</p>` : ""}
-      ${candidate.ai_fit_score !== null ? `<p><strong>Fit:</strong> ${candidate.ai_fit_score}/100</p>` : ""}
-      ${candidate.ai_rationale ? `<p>${candidate.ai_rationale}</p>` : ""}
-    </li>
-  `);
+  const cards = candidates.map((candidate) => {
+    const title = escapeHtml(candidate.destination_name || candidate.destination_iata || candidate.destination_code || "Unknown destination");
+    const price = hasValue(candidate.price) ? `${Number(candidate.price).toFixed(2)} ${escapeHtml(candidate.currency_code || "")}` : "Not available";
+    const origins = Array.isArray(candidate.origin_iatas) ? candidate.origin_iatas.map(escapeHtml).join(", ") : "Not available";
+    const departure = candidate.departure_date ? escapeHtml(candidate.departure_date) : "Flexible";
+    const fitScore = hasValue(candidate.ai_fit_score)
+      ? `
+        <div class="fit-score">
+          <span>${escapeHtml(candidate.ai_fit_score)}</span>
+          <small>/100 fit</small>
+        </div>
+      `
+      : "";
+
+    return `
+      <li class="candidate-card">
+        <div class="candidate-topline">
+          <div>
+            <h3>${title}</h3>
+            ${candidateMeta(candidate)}
+          </div>
+          ${fitScore}
+        </div>
+
+        <dl class="candidate-facts">
+          <div>
+            <dt>Price</dt>
+            <dd>${price}</dd>
+          </div>
+          <div>
+            <dt>Origins</dt>
+            <dd>${origins}</dd>
+          </div>
+          <div>
+            <dt>Departure</dt>
+            <dd>${departure}</dd>
+          </div>
+        </dl>
+
+        ${candidate.source === "demo" ? '<p class="demo-badge">Demo data fallback</p>' : ""}
+        ${candidate.ai_rationale ? `<p class="candidate-rationale">${escapeHtml(candidate.ai_rationale)}</p>` : ""}
+      </li>
+    `;
+  });
   container.innerHTML = `<ul class="candidate-list">${cards.join("")}</ul>`;
 }
 
@@ -95,6 +154,8 @@ document.querySelectorAll("[data-origin-picker]").forEach((form) => {
       return;
     }
 
+    suggestions.innerHTML = '<span class="empty-inline">Searching locations...</span>';
+
     if (abortController) {
       abortController.abort();
     }
@@ -105,11 +166,21 @@ document.querySelectorAll("[data-origin-picker]").forEach((form) => {
         signal: abortController.signal,
       });
       const items = await response.json();
+      suggestions.innerHTML = "";
+
+      if (!items.length) {
+        suggestions.innerHTML = '<span class="empty-inline">No matching airports or cities found.</span>';
+        return;
+      }
+
       items.forEach((item) => {
         const wrapper = document.createElement("div");
         wrapper.className = "suggestion";
-        wrapper.innerHTML = `<button type="button">${item.iata} · ${item.name || item.city_name || "Unknown"} (${item.sub_type})</button>`;
-        wrapper.querySelector("button").addEventListener("click", () => {
+        const label = `${item.iata} · ${item.name || item.city_name || "Unknown"} (${item.sub_type})`;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.addEventListener("click", () => {
           selected.appendChild(
             createOriginChip({
               iata: item.iata,
@@ -121,11 +192,12 @@ document.querySelectorAll("[data-origin-picker]").forEach((form) => {
           searchInput.value = "";
           suggestions.innerHTML = "";
         });
+        wrapper.appendChild(button);
         suggestions.appendChild(wrapper);
       });
     } catch (error) {
       if (error.name !== "AbortError") {
-        suggestions.innerHTML = "<span class=\"notice notice-error\">Suggestions are temporarily unavailable.</span>";
+        suggestions.innerHTML = '<span class="notice notice-error">Suggestions are temporarily unavailable.</span>';
       }
     }
   });
@@ -137,6 +209,7 @@ document.querySelectorAll("[data-preference-chat]").forEach((container) => {
   const send = container.querySelector("[data-preference-send]");
   const chips = container.querySelector("[data-preference-chips]");
   const summary = container.querySelector("[data-preference-summary]");
+  const defaultSendText = send.textContent;
 
   chips.querySelectorAll("[data-remove-preference]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -149,12 +222,14 @@ document.querySelectorAll("[data-preference-chat]").forEach((container) => {
   send.addEventListener("click", async () => {
     const message = input.value.trim();
     if (!message) {
+      input.focus();
       return;
     }
 
     appendChatBubble(thread, "user", message);
     input.value = "";
     send.disabled = true;
+    send.textContent = "Generating...";
 
     try {
       const response = await fetch("/api/preferences/chat", {
@@ -173,6 +248,7 @@ document.querySelectorAll("[data-preference-chat]").forEach((container) => {
         appendChatBubble(thread, "assistant", payload.assistant_message);
       }
       chips.innerHTML = "";
+      clearInlineEmptyState(chips);
       (payload.preferences || []).forEach((preference) => {
         chips.appendChild(createPreferenceChip(preference.label));
       });
@@ -182,6 +258,7 @@ document.querySelectorAll("[data-preference-chat]").forEach((container) => {
       appendChatBubble(thread, "assistant", error.message || "The assistant is temporarily unavailable.");
     } finally {
       send.disabled = false;
+      send.textContent = defaultSendText;
     }
   });
 });
@@ -191,7 +268,9 @@ document.querySelectorAll("[data-enrich-button]").forEach((button) => {
     const searchId = button.dataset.searchId;
     const status = document.querySelector("[data-enrich-status]");
     const container = document.querySelector("[data-candidates-container]");
+    const defaultButtonText = button.textContent;
     button.disabled = true;
+    button.textContent = "Enriching...";
     status.textContent = "Running AI enrichment...";
 
     try {
@@ -203,6 +282,7 @@ document.querySelectorAll("[data-enrich-button]").forEach((button) => {
       status.textContent = "AI enrichment could not be completed.";
     } finally {
       button.disabled = false;
+      button.textContent = defaultButtonText;
     }
   });
 });
