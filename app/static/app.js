@@ -121,7 +121,7 @@ function renderCandidates(container, candidates) {
             <dd>${origins}</dd>
           </div>
           <div>
-            <dt>Departure</dt>
+            <dt>Date</dt>
             <dd>${departure}</dd>
           </div>
         </dl>
